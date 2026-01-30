@@ -1,11 +1,10 @@
 import { auth } from '@/auth';
 import { Page } from '@/components/PageLayout';
 import { Pay } from '@/components/Pay';
-import { Transaction } from '@/components/Transaction';
+import { UserHeader } from '@/components/UserHeader';
 import { UserInfo } from '@/components/UserInfo';
 import { Verify } from '@/components/Verify';
-import { ViewPermissions } from '@/components/ViewPermissions';
-import { Marble, TopBar } from '@worldcoin/mini-apps-ui-kit-react';
+import { TopBar } from '@worldcoin/mini-apps-ui-kit-react';
 
 export default async function Home() {
   const session = await auth();
@@ -16,12 +15,11 @@ export default async function Home() {
         <TopBar
           title="Home"
           endAdornment={
-            <div className="flex items-center gap-2">
-              <p className="text-sm font-semibold capitalize">
-                {session?.user.username}
-              </p>
-              <Marble src={session?.user.profilePictureUrl} className="w-12" />
-            </div>
+            <UserHeader
+              username={session?.user.username}
+              walletAddress={session?.user.walletAddress}
+              profilePictureUrl={session?.user.profilePictureUrl}
+            />
           }
         />
       </Page.Header>
@@ -29,8 +27,6 @@ export default async function Home() {
         <UserInfo />
         <Verify />
         <Pay />
-        <Transaction />
-        <ViewPermissions />
       </Page.Main>
     </>
   );
