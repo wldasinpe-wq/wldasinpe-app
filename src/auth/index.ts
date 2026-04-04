@@ -63,11 +63,14 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
           return null;
         }
         // Optionally, fetch the user info from your own database
-        const userInfo = await MiniKit.getUserInfo(finalPayload.address);
+        const address = result.siweMessageData.address;
+        const userInfo = await MiniKit.getUserInfo(address);
 
         return {
-          id: finalPayload.address,
-          ...userInfo,
+          id: address,
+          walletAddress: userInfo.walletAddress || address,
+          username: userInfo.username ?? '',
+          profilePictureUrl: userInfo.profilePictureUrl ?? '',
         };
       },
     }),
@@ -76,7 +79,7 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
     async jwt({ token, user }) {
       if (user) {
         token.userId = user.id;
-        token.walletAddress = user.walletAddress;
+        token.walletAddress = user.walletAddress || user.id;
         token.username = user.username;
         token.profilePictureUrl = user.profilePictureUrl;
       }
@@ -86,7 +89,14 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
     session: async ({ session, token }) => {
       if (token.userId) {
         session.user.id = token.userId as string;
-        session.user.walletAddress = token.walletAddress as string;
+        const wid = token.walletAddress as string | undefined;
+        const uid = token.userId as string;
+        session.user.walletAddress =
+          wid && /^0x[a-fA-F0-9]{40}$/i.test(wid)
+            ? wid
+            : /^0x[a-fA-F0-9]{40}$/i.test(uid)
+              ? uid
+              : (wid ?? '');
         session.user.username = token.username as string;
         session.user.profilePictureUrl = token.profilePictureUrl as string;
       }
