@@ -115,7 +115,7 @@ export const PhoneStep = () => {
 
   return (
     <div className="grid w-full gap-8 max-w-md">
-      <StepProgress currentStep={1} totalSteps={4} />
+      <StepProgress currentStep={1} totalSteps={6} />
 
       <StepHeader
         title="Número de SINPE Móvil"

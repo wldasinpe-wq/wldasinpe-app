@@ -16,7 +16,7 @@ export const StepProgress = ({
           className={`flex-1 h-1 ${step <= currentStep ? 'bg-gray-900' : 'bg-gray-300'}`}
         />
       ))}
-      <span className="text-xs text-gray-500 ml-2 shrink-0">
+      <span className="text-xs text-gray-500 ml-2 shrink-0 tabular-nums">
         Paso {currentStep} de {totalSteps}
       </span>
     </div>

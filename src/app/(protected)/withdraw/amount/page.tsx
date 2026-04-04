@@ -1,12 +1,12 @@
 import { auth } from '@/auth';
 import { Page } from '@/components/PageLayout';
-import { UserHeader } from '@/components/UserHeader';
+import { WldBalancePill } from '@/components/WldBalanceDisplay';
 import { TopBar } from '@worldcoin/mini-apps-ui-kit-react';
 import { AmountStep } from '@/components/WithdrawSteps/AmountStep';
 import Link from 'next/link';
 
 export default async function WithdrawAmountPage() {
-  const session = await auth();
+  await auth();
 
   return (
     <>
@@ -19,9 +19,10 @@ export default async function WithdrawAmountPage() {
               </svg>
             </Link>
           }
+          endAdornment={<WldBalancePill />}
         />
       </Page.Header>
-      <Page.Main className="flex flex-col items-center justify-start gap-6 px-6 py-6 mb-16">
+      <Page.Main className="flex min-h-0 flex-1 flex-col px-4 py-3 pb-8">
         <AmountStep />
       </Page.Main>
     </>

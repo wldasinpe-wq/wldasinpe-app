@@ -73,7 +73,7 @@ export const ConfirmStep = () => {
 
   return (
     <div className="grid w-full gap-8 max-w-md">
-      <StepProgress currentStep={2} totalSteps={4} />
+      <StepProgress currentStep={2} totalSteps={6} />
 
       <StepHeader
         title="Confirmar cuenta destino"

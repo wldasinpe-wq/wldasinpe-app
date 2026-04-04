@@ -139,7 +139,7 @@ export const IdCaptureStep = () => {
 
   return (
     <div className="grid w-full gap-8 max-w-md">
-      <StepProgress currentStep={3} totalSteps={4} />
+      <StepProgress currentStep={3} totalSteps={6} />
 
       <StepHeader
         title="Identificación"

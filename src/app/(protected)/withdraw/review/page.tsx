@@ -1,11 +1,11 @@
 import { auth } from '@/auth';
 import { Page } from '@/components/PageLayout';
 import { WldBalancePill } from '@/components/WldBalanceDisplay';
+import { InitiateWithdrawalStep } from '@/components/WithdrawSteps/InitiateWithdrawalStep';
 import { TopBar } from '@worldcoin/mini-apps-ui-kit-react';
-import { IdCaptureStep } from '@/components/WithdrawSteps/IdCaptureStep';
 import Link from 'next/link';
 
-export default async function WithdrawIdPage() {
+export default async function WithdrawReviewPage() {
   await auth();
 
   return (
@@ -14,8 +14,8 @@ export default async function WithdrawIdPage() {
         <TopBar
           startAdornment={
             <Link
-              href="/withdraw/confirm"
-              className="text-gray-900 hover:text-gray-600 transition-colors"
+              href="/withdraw/amount"
+              className="text-gray-900 transition-colors hover:text-gray-600"
             >
               <svg
                 width="24"
@@ -35,7 +35,7 @@ export default async function WithdrawIdPage() {
         />
       </Page.Header>
       <Page.Main className="flex flex-col items-center justify-start gap-6 px-6 py-6 pb-8">
-        <IdCaptureStep />
+        <InitiateWithdrawalStep />
       </Page.Main>
     </>
   );

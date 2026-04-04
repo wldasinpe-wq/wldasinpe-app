@@ -1,17 +1,17 @@
 import { auth } from '@/auth';
 import { Page } from '@/components/PageLayout';
-import { UserHeader } from '@/components/UserHeader';
+import { WldBalanceInline, WldBalancePill } from '@/components/WldBalanceDisplay';
 import { Button, TopBar } from '@worldcoin/mini-apps-ui-kit-react';
 import Link from 'next/link';
-import { EXCHANGE_RATES, formatCurrency } from '@/constants/exchange';
+import { EXCHANGE_RATES, FEES, formatCurrency } from '@/constants/exchange';
 
 export default async function Home() {
-  const session = await auth();
+  await auth();
 
   return (
     <>
       <Page.Header className="p-0">
-        <TopBar />
+        <TopBar endAdornment={<WldBalancePill />} />
       </Page.Header>
       <Page.Main className="flex flex-col items-center justify-center gap-8 px-6 py-12">
         {/* Hero Section */}
@@ -42,9 +42,10 @@ export default async function Home() {
           </div>
         </div>
 
-        {/* CTA Button */}
-        <div className="w-full max-w-md">
-          <Link href="/withdraw/phone" className="block">
+        {/* CTA */}
+        <div className="flex w-full max-w-md flex-col items-center gap-3">
+          <WldBalanceInline />
+          <Link href="/withdraw/phone" className="block w-full">
             <Button
               size="lg"
               variant="primary"
@@ -57,7 +58,7 @@ export default async function Home() {
 
         {/* Info */}
         <div className="text-center text-xs text-gray-500 max-w-md space-y-1 border-t border-gray-200 pt-6">
-          <p>Comisión fija: ₡495 por transacción</p>
+          <p>Comisión fija: {formatCurrency.CRC(FEES.FLAT_FEE_CRC)} por transacción</p>
           <p>Monto mínimo: 0.1 WLD</p>
         </div>
       </Page.Main>
