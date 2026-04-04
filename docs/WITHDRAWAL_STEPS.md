@@ -42,7 +42,12 @@ What it does: Makes withdrawal creation visible in the product flow and creates 
 Technical: After Step 6 returns the reference id, a client pay step (dedicated screen or continuation on the same screen) calls `MiniKit.commandsAsync.pay()` to transfer WLD to the Ridivi wallet using that reference.  
 What it does: Moves user funds on-chain to the service wallet.
 
-## Step 8 - UX completion
+## Step 8 - Send compliance email (provider / Ridivi)
+
+Technical: After the on-chain transfer succeeds, the server **persists the outcome in Neon Postgres** (via Prisma): update `withdrawals` with `transaction_id`, `tx_hash` (when known), amounts, and status toward `emailed`/`completed` as you define it, and record chain details in `transactions` if you use a separate table—same fields you will put in the email so DB and notification stay aligned. Then send the transactional email (recommended: **Resend**, per `docs/INFRA_RECOMMENDATIONS.md`) to the configured Ridivi inbox; use an idempotency key (`reference_id` or `transaction_id`), append rows to `email_events` for every attempt, and retry failures with backoff. Email body must include at minimum: `reference_id`, wallet address, SINPE phone, WLD and CRC amounts, `tx_hash` (when available), UTC timestamp, and environment (`prod`/`staging`). In production, gate this whole step on **confirmed/mined** status once polling exists (see Step 11)—until then, run from the MiniKit pay success path and backfill `tx_hash` when available.  
+What it does: Saves the authoritative withdrawal and transaction record in your database, then notifies Ridivi with the same data so they can execute the CRC payout, with a full audit trail (`email_events` + row updates).
+
+## Step 9 - UX completion
 
 Technical: On success, UI clears temporary phone data and redirects user to `/home`; on failure/cancel it shows feedback state.  
 What it does: Closes the user flow with a clear success/failure outcome.
@@ -59,6 +64,7 @@ What it does: Closes the user flow with a clear success/failure outcome.
 - `src/components/WithdrawSteps/ui/StepProgress.tsx`
 - `src/components/WithdrawSteps/ui/StepHeader.tsx`
 - `src/components/WithdrawSteps/ui/InfoBox.tsx`
+- Server: DB + email + audit (to add: Prisma update to `withdrawals`/`transactions`, then Resend via `src/lib/email/` or `POST` route / job; `email_events` per `docs/INFRA_RECOMMENDATIONS.md`)
 
 This keeps each step logic in one component and shared UI in reusable subcomponents.
 
@@ -66,17 +72,12 @@ This keeps each step logic in one component and shared UI in reusable subcompone
 
 ## Next steps to add (recommended)
 
-## Step 9 - Persist transaction data
+## Step 10 - Persist transaction data
 
-Technical: Save user metadata + withdrawal + tx status in Neon Postgres (via Prisma) when initiating and confirming the transaction.  
-What it does: Gives traceability, auditability, support tooling, and retry safety.
+Technical: Save user metadata + withdrawal + tx status in Neon Postgres (via Prisma) when **initiating** (Step 6) and when **confirming mined** (Step 11); Step 8 must **finalize or reconcile** those rows with the same payload used for the compliance email.  
+What it does: Gives traceability, auditability, support tooling, and retry safety across the full lifecycle (draft → on-chain → emailed).
 
-## Step 10 - Confirm on-chain status
+## Step 11 - Confirm on-chain status
 
-Technical: After MiniKit returns `transaction_id`, poll/get transaction status and mark withdrawal as `confirmed` when mined.  
+Technical: After MiniKit returns `transaction_id`, poll/get transaction status and mark withdrawal as `confirmed` when mined; then align Step 8 so the compliance email runs only after this confirmation (see reliability pattern in `docs/INFRA_RECOMMENDATIONS.md`).  
 What it does: Guarantees downstream actions only run for successful on-chain transfers.
-
-## Step 11 - Send compliant provider email
-
-Technical: Trigger a server-side email job with idempotency key after confirmation; include required compliance fields from DB.  
-What it does: Notifies Ridivi with standardized data so they can execute the CRC payout.
