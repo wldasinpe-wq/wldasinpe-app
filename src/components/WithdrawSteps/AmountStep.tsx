@@ -252,7 +252,7 @@ export const AmountStep = () => {
                 <>
                   Saldo {formatCurrency.WLD(wldWeiToNumber(balanceWei))} · mín.{' '}
                   {LIMITS.MIN_WLD} WLD
-                  {balanceWei === 0n ? (
+                  {balanceWei === BigInt(0) ? (
                     <span className="mt-1.5 block text-[11px] text-gray-400">
                       Tu saldo WLD en World Chain es 0. Cargá WLD en World App
                       para poder retirar.

@@ -1,6 +1,7 @@
 'use client';
 
 import { Button } from '@worldcoin/mini-apps-ui-kit-react';
+import NextImage from 'next/image';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import {
@@ -179,9 +180,12 @@ export const IdCaptureStep = () => {
             className="w-full aspect-4/3 flex flex-col items-center justify-center gap-2 text-sm text-gray-600 hover:bg-gray-50 transition-colors disabled:opacity-50"
           >
             {frontDataUrl ? (
-              <img
+              <NextImage
                 src={frontDataUrl}
                 alt="Frente del documento"
+                width={800}
+                height={600}
+                unoptimized
                 className="w-full h-full object-contain max-h-48"
               />
             ) : (
@@ -206,9 +210,12 @@ export const IdCaptureStep = () => {
             className="w-full aspect-4/3 flex flex-col items-center justify-center gap-2 text-sm text-gray-600 hover:bg-gray-50 transition-colors disabled:opacity-50"
           >
             {backDataUrl ? (
-              <img
+              <NextImage
                 src={backDataUrl}
                 alt="Reverso del documento"
+                width={800}
+                height={600}
+                unoptimized
                 className="w-full h-full object-contain max-h-48"
               />
             ) : (

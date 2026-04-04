@@ -52,7 +52,7 @@ export const Verify = () => {
 
   return (
     <div className="grid w-full gap-4">
-      {/* <p className="text-lg font-semibold">Verify</p>
+      <p className="text-lg font-semibold">Verify</p>
       <LiveFeedback
         label={{
           failed: 'Failed to verify',
@@ -96,7 +96,7 @@ export const Verify = () => {
         >
           Verify (Orb)
         </Button>
-      </LiveFeedback> */}
+      </LiveFeedback>
     </div>
   );
 };
