@@ -1,5 +1,5 @@
 import clsx from 'clsx';
-import { ReactNode } from 'react';
+import type { CSSProperties, ReactNode } from 'react';
 import { twMerge } from 'tailwind-merge';
 
 /**
@@ -28,21 +28,33 @@ const Header = (props: { children: ReactNode; className?: string }) => {
   );
 };
 
-const Main = (props: { children: ReactNode; className?: string }) => {
+const Main = (props: {
+  children: ReactNode;
+  className?: string;
+  style?: CSSProperties;
+}) => {
   return (
     <main
       className={twMerge(
         clsx('grow overflow-y-auto p-4', props.className),
       )}
+      style={props.style}
     >
       {props.children}
     </main>
   );
 };
 
-const Footer = (props: { children: ReactNode; className?: string }) => {
+const Footer = (props: {
+  children: ReactNode;
+  className?: string;
+  style?: CSSProperties;
+}) => {
   return (
-    <footer className={twMerge('px-6 pb-[35px]', clsx(props.className))}>
+    <footer
+      className={twMerge('px-6 pb-[35px]', clsx(props.className))}
+      style={props.style}
+    >
       {props.children}
     </footer>
   );
