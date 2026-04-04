@@ -1,6 +1,7 @@
 import { auth } from '@/auth';
-import { Navigation } from '@/components/Navigation';
+import { ConditionalFixedNavigation } from '@/components/Navigation/ConditionalFixedNavigation';
 import { Page } from '@/components/PageLayout';
+import { WldBalanceProvider } from '@/components/WldBalanceDisplay';
 
 export default async function TabsLayout({
   children,
@@ -17,10 +18,8 @@ export default async function TabsLayout({
 
   return (
     <Page>
-      {children}
-      <Page.Footer className="px-0 fixed bottom-0 w-full" style={{ background: 'var(--white-ridivi)' }}>
-        <Navigation />
-      </Page.Footer>
+      <WldBalanceProvider>{children}</WldBalanceProvider>
+      <ConditionalFixedNavigation />
     </Page>
   );
 }
