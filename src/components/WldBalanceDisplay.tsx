@@ -180,7 +180,7 @@ export function WldBalancePill({ className }: { className?: string }) {
       type="button"
       disabled={busy}
       onClick={() => refetch()}
-      className={`shrink-0 cursor-pointer touch-manipulation rounded-lg border-0 bg-gray-100 px-2.5 py-1 text-xs font-semibold tabular-nums text-gray-900 transition-opacity focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-gray-400 enabled:active:opacity-70 disabled:cursor-wait disabled:opacity-60 ${className ?? ''}`}
+      className={`shrink-0 cursor-pointer touch-manipulation rounded-lg border-0 bg-gray-100 px-2.5 py-1 text-xs font-semibold tabular-nums text-gray-900 transition-opacity focus-visible:outline focus-visible:outline-offset-2 focus-visible:outline-gray-400 enabled:active:opacity-70 disabled:cursor-wait disabled:opacity-60 ${className ?? ''}`}
       title="Toca para actualizar · Saldo WLD en World Chain"
       aria-label="Actualizar saldo WLD"
     >
@@ -198,7 +198,7 @@ export function WldBalanceInline({ className }: { className?: string }) {
       type="button"
       disabled={busy}
       onClick={() => refetch()}
-      className={`flex w-full max-w-xs cursor-pointer touch-manipulation items-center justify-center gap-2 rounded-lg border-0 bg-transparent py-1.5 text-sm transition-opacity focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-gray-400 enabled:active:opacity-70 disabled:cursor-wait disabled:opacity-60 ${className ?? ''}`}
+      className={`flex w-full max-w-xs cursor-pointer touch-manipulation items-center justify-center gap-2 rounded-lg border-0 bg-transparent py-1.5 text-sm transition-opacity focus-visible:outline focus-visible:outline-offset-2 focus-visible:outline-gray-400 enabled:active:opacity-70 disabled:cursor-wait disabled:opacity-60 ${className ?? ''}`}
       title="Toca para actualizar · Saldo WLD en World Chain"
       aria-label="Actualizar saldo WLD"
     >
