@@ -11,6 +11,8 @@ import {
   formatCurrency,
 } from '@/constants/exchange';
 import {
+  SINPE_SESSION_ID_BACK,
+  SINPE_SESSION_ID_FRONT,
   SINPE_SESSION_PHONE,
   SINPE_SESSION_PROFILE,
 } from '@/constants/sinpe-session';
@@ -34,8 +36,14 @@ export const AmountStep = () => {
   useEffect(() => {
     const savedPhone = sessionStorage.getItem(SINPE_SESSION_PHONE);
     const profileRaw = sessionStorage.getItem(SINPE_SESSION_PROFILE);
+    const idFront = sessionStorage.getItem(SINPE_SESSION_ID_FRONT);
+    const idBack = sessionStorage.getItem(SINPE_SESSION_ID_BACK);
     if (!savedPhone || !profileRaw) {
       router.replace('/withdraw/phone');
+      return;
+    }
+    if (!idFront || !idBack) {
+      router.replace('/withdraw/id');
       return;
     }
     setPhoneNumber(savedPhone);
@@ -177,6 +185,8 @@ export const AmountStep = () => {
         setButtonState('success');
         sessionStorage.removeItem(SINPE_SESSION_PHONE);
         sessionStorage.removeItem(SINPE_SESSION_PROFILE);
+        sessionStorage.removeItem(SINPE_SESSION_ID_FRONT);
+        sessionStorage.removeItem(SINPE_SESSION_ID_BACK);
         setTimeout(() => {
           router.push('/home');
         }, 2000);
@@ -209,7 +219,7 @@ export const AmountStep = () => {
   return (
     <div className="flex flex-col justify-between h-full w-full max-w-md mx-auto">
       <div className="grid gap-4 pb-4">
-        <StepProgress currentStep={3} />
+        <StepProgress currentStep={4} totalSteps={4} />
         <StepHeader
           title="Monto a retirar"
           description="Ingresá cuánto WLD querés retirar a tu cuenta SINPE"

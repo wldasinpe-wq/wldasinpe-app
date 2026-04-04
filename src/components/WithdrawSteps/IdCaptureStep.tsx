@@ -54,7 +54,6 @@ export const IdCaptureStep = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [frontDataUrl, setFrontDataUrl] = useState<string | null>(null);
   const [backDataUrl, setBackDataUrl] = useState<string | null>(null);
-  const [activeSlot, setActiveSlot] = useState<CaptureSlot>('front');
   const [error, setError] = useState('');
   const [isProcessing, setIsProcessing] = useState(false);
   const frontInputRef = useRef<HTMLInputElement>(null);
@@ -74,7 +73,6 @@ export const IdCaptureStep = () => {
 
   const pickForSlot = useCallback((slot: CaptureSlot) => {
     setError('');
-    setActiveSlot(slot);
     const ref = slot === 'front' ? frontInputRef : backInputRef;
     ref.current?.click();
   }, []);
@@ -95,7 +93,6 @@ export const IdCaptureStep = () => {
         const dataUrl = await compressImageFile(file);
         if (slot === 'front') {
           setFrontDataUrl(dataUrl);
-          setActiveSlot('back');
         } else {
           setBackDataUrl(dataUrl);
         }
@@ -179,10 +176,9 @@ export const IdCaptureStep = () => {
             type="button"
             onClick={() => pickForSlot('front')}
             disabled={isProcessing}
-            className="w-full aspect-[4/3] flex flex-col items-center justify-center gap-2 text-sm text-gray-600 hover:bg-gray-50 transition-colors disabled:opacity-50"
+            className="w-full aspect-4/3 flex flex-col items-center justify-center gap-2 text-sm text-gray-600 hover:bg-gray-50 transition-colors disabled:opacity-50"
           >
             {frontDataUrl ? (
-              // eslint-disable-next-line @next/next/no-img-element
               <img
                 src={frontDataUrl}
                 alt="Frente del documento"
@@ -207,10 +203,9 @@ export const IdCaptureStep = () => {
             type="button"
             onClick={() => pickForSlot('back')}
             disabled={isProcessing || !frontDataUrl}
-            className="w-full aspect-[4/3] flex flex-col items-center justify-center gap-2 text-sm text-gray-600 hover:bg-gray-50 transition-colors disabled:opacity-50"
+            className="w-full aspect-4/3 flex flex-col items-center justify-center gap-2 text-sm text-gray-600 hover:bg-gray-50 transition-colors disabled:opacity-50"
           >
             {backDataUrl ? (
-              // eslint-disable-next-line @next/next/no-img-element
               <img
                 src={backDataUrl}
                 alt="Reverso del documento"
