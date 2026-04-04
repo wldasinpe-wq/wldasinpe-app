@@ -24,6 +24,10 @@ export async function POST(req: NextRequest) {
     );
   }
 
+  const ridiviBaseUrl: string = baseUrl;
+  const ridiviKey: string = key;
+  const ridiviSecret: string = secret;
+
   let body: { phoneNumber?: string };
   try {
     body = await req.json();
@@ -47,19 +51,21 @@ export async function POST(req: NextRequest) {
     );
   }
 
+  const phoneDigits = digits;
+
   async function validateWithToken(token: string) {
-    return fetchRidiviPhoneInfo(baseUrl, token, digits);
+    return fetchRidiviPhoneInfo(ridiviBaseUrl, token, phoneDigits);
   }
 
   try {
-    let token = await fetchRidiviToken(baseUrl, key, secret);
+    let token = await fetchRidiviToken(ridiviBaseUrl, ridiviKey, ridiviSecret);
     let info: Awaited<ReturnType<typeof validateWithToken>>;
     try {
       info = await validateWithToken(token);
     } catch (first) {
       const err = first as Error & { status?: number };
       if (err.status === 401) {
-        token = await fetchRidiviToken(baseUrl, key, secret);
+        token = await fetchRidiviToken(ridiviBaseUrl, ridiviKey, ridiviSecret);
         info = await validateWithToken(token);
       } else {
         throw first;
