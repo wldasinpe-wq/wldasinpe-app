@@ -9,6 +9,11 @@ import {
   SINPE_SESSION_PHONE,
   SINPE_SESSION_PROFILE,
 } from '@/constants/sinpe-session';
+import {
+  hapticError,
+  hapticPrimary,
+  hapticSuccess,
+} from '@/lib/haptics';
 
 /**
  * Validates Costa Rica phone number format
@@ -61,15 +66,18 @@ export const PhoneStep = () => {
 
   const handleContinue = async () => {
     if (!phoneNumber.trim()) {
+      hapticError();
       setError('Por favor ingresa un número de teléfono');
       return;
     }
 
     if (!validateCostaRicaPhone(phoneNumber)) {
+      hapticError();
       setError('Número de teléfono inválido. Debe tener exactamente 8 dígitos');
       return;
     }
 
+    hapticPrimary();
     setIsValidating(true);
     setError('');
 
@@ -88,6 +96,7 @@ export const PhoneStep = () => {
       };
 
       if (!res.ok) {
+        hapticError();
         setError(
           data.error ||
             'No se pudo verificar el número. Intentá de nuevo.'
@@ -95,6 +104,7 @@ export const PhoneStep = () => {
         return;
       }
 
+      hapticSuccess();
       sessionStorage.setItem(SINPE_SESSION_PHONE, phoneNumber.trim());
       sessionStorage.setItem(
         SINPE_SESSION_PROFILE,
@@ -107,6 +117,7 @@ export const PhoneStep = () => {
 
       router.push('/withdraw/confirm');
     } catch {
+      hapticError();
       setError('Error de conexión. Verificá tu red e intentá de nuevo.');
     } finally {
       setIsValidating(false);

@@ -1,5 +1,6 @@
 'use client';
 
+import { hapticSelection } from '@/lib/haptics';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useEffect, useState } from 'react';
 
@@ -40,7 +41,10 @@ export function WithdrawCompletionNotice() {
       </p>
       <button
         type="button"
-        onClick={() => setOpen(false)}
+        onClick={() => {
+          hapticSelection();
+          setOpen(false);
+        }}
         className="mt-3 text-xs font-medium text-gray-600 underline decoration-gray-300 underline-offset-2"
       >
         Cerrar

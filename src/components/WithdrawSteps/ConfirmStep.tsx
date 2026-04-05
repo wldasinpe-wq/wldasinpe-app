@@ -9,6 +9,7 @@ import {
   SINPE_SESSION_PHONE,
   SINPE_SESSION_PROFILE,
 } from '@/constants/sinpe-session';
+import { hapticPrimary } from '@/lib/haptics';
 
 type SinpeProfile = {
   nombreCliente: string;
@@ -60,6 +61,7 @@ export const ConfirmStep = () => {
   }, [router]);
 
   const handleContinue = () => {
+    hapticPrimary();
     router.push('/withdraw/email');
   };
 

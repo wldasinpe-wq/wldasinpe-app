@@ -12,6 +12,7 @@ import {
   isValidContactEmail,
   normalizeContactEmail,
 } from '@/lib/is-valid-contact-email';
+import { hapticError, hapticSuccess } from '@/lib/haptics';
 import { InfoBox } from './ui/InfoBox';
 import { StepHeader } from './ui/StepHeader';
 import { StepProgress } from './ui/StepProgress';
@@ -41,13 +42,16 @@ export const EmailStep = () => {
   const handleContinue = () => {
     const normalized = normalizeContactEmail(email);
     if (!normalized) {
+      hapticError();
       setError('Ingresá tu correo electrónico');
       return;
     }
     if (!isValidContactEmail(normalized)) {
+      hapticError();
       setError('Correo electrónico inválido');
       return;
     }
+    hapticSuccess();
     setError('');
     sessionStorage.setItem(SINPE_SESSION_CONTACT_EMAIL, normalized);
     router.push('/withdraw/id');

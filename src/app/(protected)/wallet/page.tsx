@@ -5,6 +5,12 @@ import { useWldBalance, WldBalancePill } from '@/components/WldBalanceDisplay';
 import { buildWorldAddWldFundsUrl } from '@/lib/world-add-funds-url';
 import { Button, TopBar } from '@worldcoin/mini-apps-ui-kit-react';
 import { useSession } from 'next-auth/react';
+import {
+  hapticError,
+  hapticPrimary,
+  hapticSelection,
+  hapticSuccess,
+} from '@/lib/haptics';
 import { useCallback, useMemo, useState } from 'react';
 import { formatUnits } from 'viem';
 
@@ -55,15 +61,18 @@ export default function WalletPage() {
     if (!address) return;
     try {
       await navigator.clipboard.writeText(address);
+      hapticSuccess();
       setCopied(true);
       window.setTimeout(() => setCopied(false), 2000);
     } catch {
+      hapticError();
       setCopied(false);
     }
   }, [address]);
 
   const openAddFunds = useCallback(() => {
     if (!addFundsUrl) return;
+    hapticPrimary();
     window.open(addFundsUrl, '_blank', 'noopener,noreferrer');
   }, [addFundsUrl]);
 
@@ -142,7 +151,10 @@ export default function WalletPage() {
               variant="secondary"
               type="button"
               disabled={balanceDisplay.kind === 'loading'}
-              onClick={() => refetch()}
+              onClick={() => {
+                hapticSelection();
+                refetch();
+              }}
             >
               Actualizar
             </Button>

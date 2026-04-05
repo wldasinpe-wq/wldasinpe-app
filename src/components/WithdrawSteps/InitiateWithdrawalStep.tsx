@@ -17,6 +17,11 @@ import {
   SINPE_SESSION_PHONE,
   SINPE_SESSION_PROFILE,
 } from '@/constants/sinpe-session';
+import {
+  hapticError,
+  hapticPrimary,
+  hapticSuccess,
+} from '@/lib/haptics';
 import { splitLegalName } from '@/lib/split-legal-name';
 import { InfoBox } from './ui/InfoBox';
 import { StepHeader } from './ui/StepHeader';
@@ -82,11 +87,13 @@ export const InitiateWithdrawalStep = () => {
   const handleCreateReference = async () => {
     const amount = parseFloat(amountWldStr);
     if (Number.isNaN(amount) || amount < LIMITS.MIN_WLD) {
+      hapticError();
       setError('Monto inválido');
       return;
     }
 
     setError('');
+    hapticPrimary();
     setButtonState('pending');
 
     const profileRaw = sessionStorage.getItem(SINPE_SESSION_PROFILE);
@@ -124,6 +131,7 @@ export const InitiateWithdrawalStep = () => {
         contactEmail: emailStored,
       };
     } catch {
+      hapticError();
       setButtonState('failed');
       setError('Faltan datos del destinatario. Volvé al inicio del retiro.');
       setTimeout(() => setButtonState(undefined), 3000);
@@ -143,6 +151,7 @@ export const InitiateWithdrawalStep = () => {
       };
 
       if (!res.ok) {
+        hapticError();
         setButtonState('failed');
         if (res.status === 401) {
           setError('Sesión expirada. Volvé a iniciar sesión e intentá de nuevo.');
@@ -168,6 +177,7 @@ export const InitiateWithdrawalStep = () => {
       }
 
       if (!data.id) {
+        hapticError();
         setButtonState('failed');
         setError('Respuesta inválida del servidor. Intentá de nuevo.');
         setTimeout(() => setButtonState(undefined), 3000);
@@ -175,11 +185,13 @@ export const InitiateWithdrawalStep = () => {
       }
 
       sessionStorage.setItem(SINPE_SESSION_PAY_REFERENCE, data.id);
+      hapticSuccess();
       setButtonState('success');
       setTimeout(() => {
         router.push('/withdraw/pay');
       }, 400);
     } catch {
+      hapticError();
       setButtonState('failed');
       setError('Error de red. Verificá tu conexión e intentá de nuevo.');
       setTimeout(() => setButtonState(undefined), 3000);

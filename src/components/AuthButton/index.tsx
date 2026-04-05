@@ -1,5 +1,10 @@
 'use client';
 import { walletAuth } from '@/auth/wallet';
+import {
+  hapticError,
+  hapticPrimary,
+  hapticSuccess,
+} from '@/lib/haptics';
 import { Button, LiveFeedback } from '@worldcoin/mini-apps-ui-kit-react';
 import { useMiniKit } from '@worldcoin/minikit-js/minikit-provider';
 import { useCallback, useEffect, useState } from 'react';
@@ -17,11 +22,14 @@ export const AuthButton = () => {
     if (!isInstalled || isPending) {
       return;
     }
+    hapticPrimary();
     setIsPending(true);
     try {
       await walletAuth();
+      hapticSuccess();
     } catch (error) {
       console.error('Wallet authentication button error', error);
+      hapticError();
       setIsPending(false);
       return;
     }

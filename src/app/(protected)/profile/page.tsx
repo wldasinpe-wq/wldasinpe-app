@@ -8,6 +8,7 @@ import { Button, TopBar } from '@worldcoin/mini-apps-ui-kit-react';
 import { useIsUserVerified } from '@worldcoin/minikit-react';
 import type { WithdrawalStatus } from '@prisma/client';
 import { useSession } from 'next-auth/react';
+import { hapticPrimary } from '@/lib/haptics';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 
 type WithdrawalRow = {
@@ -93,6 +94,7 @@ function ProfileAuthenticated({
   }, [address]);
 
   const openProfileCard = useCallback(() => {
+    hapticPrimary();
     if (username) {
       MiniKit.showProfileCard(username, undefined);
     } else {

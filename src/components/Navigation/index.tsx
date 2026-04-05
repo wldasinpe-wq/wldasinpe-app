@@ -2,6 +2,7 @@
 
 import { TabItem, Tabs } from '@worldcoin/mini-apps-ui-kit-react';
 import { Bank, Home, User } from 'iconoir-react';
+import { hapticSelection } from '@/lib/haptics';
 import { usePathname, useRouter } from 'next/navigation';
 import { useCallback, useMemo } from 'react';
 
@@ -24,11 +25,13 @@ export const Navigation = () => {
 
   const onValueChange = useCallback(
     (next: string) => {
+      if (next === value) return;
+      hapticSelection();
       if (next === 'home') router.push('/home');
       else if (next === 'wallet') router.push('/wallet');
       else if (next === 'profile') router.push('/profile');
     },
-    [router],
+    [router, value],
   );
 
   return (

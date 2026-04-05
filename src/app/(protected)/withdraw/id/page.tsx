@@ -3,7 +3,7 @@ import { Page } from '@/components/PageLayout';
 import { WldBalancePill } from '@/components/WldBalanceDisplay';
 import { TopBar } from '@worldcoin/mini-apps-ui-kit-react';
 import { IdCaptureStep } from '@/components/WithdrawSteps/IdCaptureStep';
-import Link from 'next/link';
+import { HapticLink } from '@/components/HapticLink';
 
 export default async function WithdrawIdPage() {
   await auth();
@@ -13,7 +13,7 @@ export default async function WithdrawIdPage() {
       <Page.Header className="p-0">
         <TopBar
           startAdornment={
-            <Link
+            <HapticLink
               href="/withdraw/amount"
               className="text-gray-900 hover:text-gray-600 transition-colors"
             >
@@ -29,7 +29,7 @@ export default async function WithdrawIdPage() {
               >
                 <path d="M19 12H5M12 19l-7-7 7-7" />
               </svg>
-            </Link>
+            </HapticLink>
           }
           endAdornment={<WldBalancePill />}
         />

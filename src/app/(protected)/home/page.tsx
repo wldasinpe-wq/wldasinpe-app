@@ -2,8 +2,8 @@ import { auth } from '@/auth';
 import { Page } from '@/components/PageLayout';
 import { WithdrawCompletionNotice } from '@/components/WithdrawCompletionNotice';
 import { WldBalanceInline, WldBalancePill } from '@/components/WldBalanceDisplay';
-import { Button, TopBar } from '@worldcoin/mini-apps-ui-kit-react';
-import Link from 'next/link';
+import { HomeWithdrawCta } from '@/components/HomeWithdrawCta';
+import { TopBar } from '@worldcoin/mini-apps-ui-kit-react';
 import { Suspense } from 'react';
 import { EXCHANGE_RATES, FEES, formatCurrency } from '@/constants/exchange';
 
@@ -51,15 +51,7 @@ export default async function Home() {
         {/* CTA */}
         <div className="flex w-full max-w-md flex-col items-center gap-3">
           <WldBalanceInline />
-          <Link href="/withdraw/phone" className="block w-full">
-            <Button
-              size="lg"
-              variant="primary"
-              className="w-full text-base font-medium tracking-wide rounded-sm shadow"
-            >
-              Iniciar retiro
-            </Button>
-          </Link>
+          <HomeWithdrawCta />
         </div>
 
         {/* Info */}

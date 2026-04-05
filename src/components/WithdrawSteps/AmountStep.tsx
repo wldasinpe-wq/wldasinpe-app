@@ -3,7 +3,7 @@
 import { Button } from '@worldcoin/mini-apps-ui-kit-react';
 import { useRouter } from 'next/navigation';
 import { useSession } from 'next-auth/react';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useLayoutEffect } from 'react';
 import * as React from 'react';
 import { parseUnits } from 'viem';
 import {
@@ -19,10 +19,20 @@ import {
   SINPE_SESSION_PROFILE,
 } from '@/constants/sinpe-session';
 import { useWldBalance } from '@/components/WldBalanceDisplay';
+import {
+  hapticError,
+  hapticPrimary,
+  hapticSelection,
+  hapticSuccess,
+} from '@/lib/haptics';
 import { StepProgress } from './ui/StepProgress';
 import { StepHeader } from './ui/StepHeader';
 
 const WLD_DECIMALS = 18 as const;
+
+/** Display-only: shrink type smoothly so long / “Máx” amounts stay on one line. */
+const AMOUNT_FONT_MIN_PX = 13;
+const AMOUNT_FONT_MAX_PX = 54;
 
 function tryParseAmountWei(amountStr: string): bigint | null {
   if (!amountStr || amountStr === '.') return null;
@@ -45,8 +55,15 @@ export const AmountStep = () => {
   const [phoneNumber, setPhoneNumber] = useState<string | null>(null);
   const [amountWLD, setAmountWLD] = useState<string>('');
   const [error, setError] = useState<string>('');
-  const [isProcessing, setIsProcessing] = useState(false);
-  const amountDisplayRef = React.useRef<HTMLDivElement>(null);
+  /** Short lock so rapid taps don’t double-enter; avoids disabling other controls (e.g. Máx). */
+  const keyLockRef = React.useRef(false);
+  const backspaceDelayRef = React.useRef<number | null>(null);
+  const backspaceIntervalRef = React.useRef<number | null>(null);
+  const amountOuterRef = React.useRef<HTMLDivElement>(null);
+  const amountInnerRef = React.useRef<HTMLSpanElement>(null);
+  const amountWLDRef = React.useRef(amountWLD);
+  const [amountFontPx, setAmountFontPx] = useState(AMOUNT_FONT_MAX_PX);
+  amountWLDRef.current = amountWLD;
 
   const [recipientName, setRecipientName] = useState('Destinatario SINPE');
 
@@ -73,62 +90,135 @@ export const AmountStep = () => {
     }
   }, [router]);
 
-  // Auto-scroll to show the last digits
-  useEffect(() => {
-    if (amountDisplayRef.current) {
-      amountDisplayRef.current.scrollLeft = amountDisplayRef.current.scrollWidth;
-    }
+  useLayoutEffect(() => {
+    const outer = amountOuterRef.current;
+    const inner = amountInnerRef.current;
+    if (!outer || !inner) return;
+
+    const fitFont = () => {
+      const available = outer.clientWidth;
+      if (available < 8) return;
+
+      let lo = AMOUNT_FONT_MIN_PX;
+      let hi = AMOUNT_FONT_MAX_PX;
+      let best = lo;
+
+      while (lo <= hi) {
+        const mid = Math.floor((lo + hi) / 2);
+        inner.style.fontSize = `${mid}px`;
+        const w = inner.scrollWidth;
+        if (w <= available) {
+          best = mid;
+          lo = mid + 1;
+        } else {
+          hi = mid - 1;
+        }
+      }
+
+      inner.style.fontSize = `${best}px`;
+      setAmountFontPx(best);
+    };
+
+    fitFont();
+    const ro = new ResizeObserver(fitFont);
+    ro.observe(outer);
+    return () => ro.disconnect();
   }, [amountWLD]);
 
+  const stopBackspaceHold = React.useCallback(() => {
+    if (backspaceDelayRef.current !== null) {
+      clearTimeout(backspaceDelayRef.current);
+      backspaceDelayRef.current = null;
+    }
+    if (backspaceIntervalRef.current !== null) {
+      clearInterval(backspaceIntervalRef.current);
+      backspaceIntervalRef.current = null;
+    }
+  }, []);
+
+  React.useEffect(() => () => stopBackspaceHold(), [stopBackspaceHold]);
+
   const handleNumberClick = (num: string) => {
-    if (isProcessing) return;
-    
-    setIsProcessing(true);
-    
-    // Evitar múltiples puntos decimales
-    if (num === '.' && amountWLD.includes('.')) {
-      setIsProcessing(false);
-      return;
+    if (keyLockRef.current) return;
+    const prev = amountWLDRef.current;
+
+    if (num === '.' && prev.includes('.')) return;
+    if (prev.includes('.')) {
+      const [, decimals] = prev.split('.');
+      if (decimals && decimals.length >= 2) return;
     }
-    
-    // Limitar a 2 decimales
-    if (amountWLD.includes('.')) {
-      const [, decimals] = amountWLD.split('.');
-      if (decimals && decimals.length >= 2) {
-        setIsProcessing(false);
-        return;
-      }
-    }
-    
-    setAmountWLD(prev => prev + num);
+
+    const joined = prev + num;
+    keyLockRef.current = true;
+    hapticSelection();
+    amountWLDRef.current = joined;
+    setAmountWLD(joined);
     setError('');
-    
-    // Debounce para evitar clicks múltiples
-    setTimeout(() => {
-      setIsProcessing(false);
-    }, 150);
+    window.setTimeout(() => {
+      keyLockRef.current = false;
+    }, 110);
   };
 
-  const handleBackspace = () => {
-    if (isProcessing) return;
-    
-    setIsProcessing(true);
-    setAmountWLD(prev => prev.slice(0, -1));
+  const handleBackspacePointerDown = (
+    e: React.PointerEvent<HTMLButtonElement>,
+  ) => {
+    if (e.pointerType === 'mouse' && e.button !== 0) return;
+    e.preventDefault();
+    const el = e.currentTarget;
+    el.setPointerCapture(e.pointerId);
+
+    stopBackspaceHold();
+    if (amountWLDRef.current.length > 0) {
+      hapticSelection();
+    }
+    setAmountWLD((prev) => {
+      const next = prev.slice(0, -1);
+      amountWLDRef.current = next;
+      return next;
+    });
     setError('');
-    
-    setTimeout(() => {
-      setIsProcessing(false);
-    }, 150);
+
+    backspaceDelayRef.current = window.setTimeout(() => {
+      backspaceIntervalRef.current = window.setInterval(() => {
+        setAmountWLD((prev) => {
+          if (prev.length === 0) {
+            stopBackspaceHold();
+            return prev;
+          }
+          const next = prev.slice(0, -1);
+          amountWLDRef.current = next;
+          if (next.length === 0) {
+            stopBackspaceHold();
+          }
+          return next;
+        });
+      }, 68);
+    }, 420);
+  };
+
+  const handleBackspacePointerEnd = (
+    e: React.PointerEvent<HTMLButtonElement>,
+  ) => {
+    stopBackspaceHold();
+    try {
+      e.currentTarget.releasePointerCapture(e.pointerId);
+    } catch {
+      /* already released */
+    }
   };
 
   const handleMaxClick = () => {
-    if (isProcessing || balanceWei === null) return;
-    setAmountWLD(wldWeiToKeypadAmount(balanceWei));
+    if (balanceWei === null) return;
+    hapticPrimary();
+    const maxStr = wldWeiToKeypadAmount(balanceWei);
+    amountWLDRef.current = maxStr;
+    setAmountWLD(maxStr);
     setError('');
   };
 
   const handleContinue = () => {
     if (!phoneNumber) {
+      hapticError();
       setError('Número de teléfono no encontrado');
       return;
     }
@@ -136,23 +226,28 @@ export const AmountStep = () => {
     const amount = parseFloat(amountWLD);
 
     if (isNaN(amount) || amount <= 0) {
+      hapticError();
       setError('Ingresá una cantidad válida');
       return;
     }
     if (amount < LIMITS.MIN_WLD) {
+      hapticError();
       setError(`Mínimo: ${LIMITS.MIN_WLD} WLD`);
       return;
     }
     const enteredWei = tryParseAmountWei(amountWLD);
     if (balanceWei === null || enteredWei === null) {
+      hapticError();
       setError('No se pudo validar el saldo');
       return;
     }
     if (enteredWei > balanceWei) {
+      hapticError();
       setError('Saldo insuficiente');
       return;
     }
 
+    hapticSuccess();
     setError('');
     sessionStorage.setItem(SINPE_SESSION_AMOUNT_WLD, amountWLD.trim());
     router.push('/withdraw/id');
@@ -191,46 +286,35 @@ export const AmountStep = () => {
       </div>
 
       <div className="flex min-h-0 flex-1 flex-col justify-center overflow-y-auto overscroll-contain px-3 py-4">
-        <div className="mx-auto flex w-full max-w-xs flex-col items-center gap-5">
+        <div className="mx-auto flex w-full max-w-sm flex-col items-center gap-5">
           <p className="max-w-full truncate text-center text-sm text-gray-600">
             A {recipientName}
           </p>
 
-          <div className="flex w-full items-center justify-center gap-3 px-1">
-            <div className="flex min-w-0 flex-1 items-center justify-center gap-2 overflow-hidden">
+          <div className="flex min-h-13 w-full items-center justify-center gap-2 px-0.5 sm:gap-3">
+            <span
+              className={`shrink-0 self-center text-base font-semibold tabular-nums sm:text-lg ${isOverBalance ? 'text-red-600' : 'text-gray-800'}`}
+            >
+              WLD
+            </span>
+            <div
+              ref={amountOuterRef}
+              className="flex min-h-11 min-w-0 flex-1 items-center justify-center overflow-hidden"
+            >
               <span
-                className={`shrink-0 text-lg font-semibold ${isOverBalance ? 'text-red-600' : 'text-gray-800'}`}
-              >
-                WLD
-              </span>
-              <div
-                ref={amountDisplayRef}
-                className={`scrollbar-hide max-w-full overflow-x-auto whitespace-nowrap text-center text-6xl font-bold leading-none tabular-nums sm:text-7xl ${isOverBalance ? 'text-red-600' : 'text-gray-900'}`}
-                style={{
-                  fontSize:
-                    amountWLD.length > 12
-                      ? '2rem'
-                      : amountWLD.length > 9
-                        ? '2.5rem'
-                        : amountWLD.length > 7
-                          ? '3.125rem'
-                          : undefined,
-                  scrollbarWidth: 'none',
-                  msOverflowStyle: 'none',
-                }}
+                ref={amountInnerRef}
+                className={`inline-block max-w-none whitespace-nowrap text-center font-semibold tabular-nums leading-none tracking-tight ${isOverBalance ? 'text-red-600' : 'text-gray-900'}`}
+                style={{ fontSize: amountFontPx }}
+                translate="no"
               >
                 {amountWLD || '0'}
-              </div>
+              </span>
             </div>
 
             <button
               type="button"
               onClick={handleMaxClick}
-              disabled={
-                isProcessing ||
-                balanceWei === null ||
-                balanceWei === BigInt(0)
-              }
+              disabled={balanceWei === null || balanceWei === BigInt(0)}
               className="shrink-0 rounded-lg px-3 py-1.5 text-xs font-semibold uppercase tracking-wide text-blue-600 transition-colors active:bg-blue-50 active:text-blue-700 disabled:opacity-50"
             >
               Máx
@@ -273,7 +357,10 @@ export const AmountStep = () => {
                     <span className="mt-2 block">
                       <button
                         type="button"
-                        onClick={() => refetchBalance()}
+                        onClick={() => {
+                          hapticSelection();
+                          refetchBalance();
+                        }}
                         className="text-xs font-semibold text-blue-600 underline decoration-blue-300 underline-offset-2 active:opacity-70"
                       >
                         Reintentar consulta de saldo
@@ -303,115 +390,94 @@ export const AmountStep = () => {
         <div className="mx-auto mb-3 grid w-full max-w-sm grid-cols-3 gap-2">
           {/* Row 1 */}
           <button
-            onMouseDown={() => handleNumberClick('1')}
-            onTouchStart={() => handleNumberClick('1')}
-            disabled={isProcessing}
             type="button"
+            onPointerDown={() => handleNumberClick('1')}
             className={keypadBtn}
           >
             1
           </button>
           <button
-            onMouseDown={() => handleNumberClick('2')}
-            onTouchStart={() => handleNumberClick('2')}
-            disabled={isProcessing}
             type="button"
+            onPointerDown={() => handleNumberClick('2')}
             className={keypadBtn}
           >
             2
           </button>
           <button
-            onMouseDown={() => handleNumberClick('3')}
-            onTouchStart={() => handleNumberClick('3')}
-            disabled={isProcessing}
             type="button"
+            onPointerDown={() => handleNumberClick('3')}
             className={keypadBtn}
           >
             3
           </button>
-          
+
           {/* Row 2 */}
           <button
-            onMouseDown={() => handleNumberClick('4')}
-            onTouchStart={() => handleNumberClick('4')}
-            disabled={isProcessing}
             type="button"
+            onPointerDown={() => handleNumberClick('4')}
             className={keypadBtn}
           >
             4
           </button>
           <button
-            onMouseDown={() => handleNumberClick('5')}
-            onTouchStart={() => handleNumberClick('5')}
-            disabled={isProcessing}
             type="button"
+            onPointerDown={() => handleNumberClick('5')}
             className={keypadBtn}
           >
             5
           </button>
           <button
-            onMouseDown={() => handleNumberClick('6')}
-            onTouchStart={() => handleNumberClick('6')}
-            disabled={isProcessing}
             type="button"
+            onPointerDown={() => handleNumberClick('6')}
             className={keypadBtn}
           >
             6
           </button>
-          
+
           {/* Row 3 */}
           <button
-            onMouseDown={() => handleNumberClick('7')}
-            onTouchStart={() => handleNumberClick('7')}
-            disabled={isProcessing}
             type="button"
+            onPointerDown={() => handleNumberClick('7')}
             className={keypadBtn}
           >
             7
           </button>
           <button
-            onMouseDown={() => handleNumberClick('8')}
-            onTouchStart={() => handleNumberClick('8')}
-            disabled={isProcessing}
             type="button"
+            onPointerDown={() => handleNumberClick('8')}
             className={keypadBtn}
           >
             8
           </button>
           <button
-            onMouseDown={() => handleNumberClick('9')}
-            onTouchStart={() => handleNumberClick('9')}
-            disabled={isProcessing}
             type="button"
+            onPointerDown={() => handleNumberClick('9')}
             className={keypadBtn}
           >
             9
           </button>
-          
+
           {/* Row 4 */}
           <button
-            onMouseDown={() => handleNumberClick('.')}
-            onTouchStart={() => handleNumberClick('.')}
-            disabled={isProcessing}
             type="button"
+            onPointerDown={() => handleNumberClick('.')}
             className={keypadBtn}
           >
             .
           </button>
           <button
-            onMouseDown={() => handleNumberClick('0')}
-            onTouchStart={() => handleNumberClick('0')}
-            disabled={isProcessing}
             type="button"
+            onPointerDown={() => handleNumberClick('0')}
             className={keypadBtn}
           >
             0
           </button>
           <button
             type="button"
-            onMouseDown={handleBackspace}
-            onTouchStart={handleBackspace}
-            disabled={isProcessing}
+            onPointerDown={handleBackspacePointerDown}
+            onPointerUp={handleBackspacePointerEnd}
+            onPointerCancel={handleBackspacePointerEnd}
+            onLostPointerCapture={() => stopBackspaceHold()}
             className={keypadBtn}
           >
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">

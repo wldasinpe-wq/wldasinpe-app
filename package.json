@@ -6,6 +6,7 @@
   "license": "MIT",
   "private": true,
   "type": "module",
+  "packageManager": "pnpm@9.14.2",
   "scripts": {
     "dev": "next dev",
     "build": "bash scripts/prisma-with-env.sh generate && next build",
@@ -27,15 +28,14 @@
     "clsx": "^2.1.1",
     "iconoir-react": "^7.11.0",
     "next": "^15.2.8",
-    "resend": "^4.0.0",
     "next-auth": "^5.0.0-beta.25",
     "react": "^19.0.3",
     "react-dom": "^19.0.3",
+    "resend": "^4.0.0",
     "tailwind-merge": "^3.2.0",
     "viem": "2.23.5"
   },
   "devDependencies": {
-    "prisma": "^6.19.0",
     "@eslint/eslintrc": "^3",
     "@tailwindcss/postcss": "^4",
     "@types/node": "^20",
@@ -44,6 +44,7 @@
     "eruda": "^3.4.1",
     "eslint": "^9",
     "eslint-config-next": "15.2.3",
+    "prisma": "^6.19.0",
     "tailwindcss": "^4",
     "tsx": "^4.19.0",
     "typescript": "^5"

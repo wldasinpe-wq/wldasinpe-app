@@ -13,6 +13,11 @@ import {
   SINPE_SESSION_PHONE,
   SINPE_SESSION_PROFILE,
 } from '@/constants/sinpe-session';
+import {
+  hapticError,
+  hapticPrimary,
+  hapticSelection,
+} from '@/lib/haptics';
 import { StepProgress } from './ui/StepProgress';
 import { StepHeader } from './ui/StepHeader';
 import { InfoBox } from './ui/InfoBox';
@@ -132,6 +137,7 @@ export const IdCaptureStep = () => {
   }, [router]);
 
   const pickForSlot = useCallback((slot: CaptureSlot) => {
+    hapticSelection();
     setError('');
     const ref = slot === 'front' ? frontInputRef : backInputRef;
     ref.current?.click();
@@ -140,16 +146,19 @@ export const IdCaptureStep = () => {
   const handleFile = useCallback(
     async (file: File | undefined, slot: CaptureSlot) => {
       if (!file || !file.type.startsWith('image/')) {
+        if (file) hapticError();
         setError('Elegí un archivo de imagen válido');
         return;
       }
       if (file.size < MIN_ORIGINAL_BYTES) {
+        hapticError();
         setError(
           'El archivo es demasiado chico o vacío. Hacé otra foto del documento.'
         );
         return;
       }
       if (file.size > MAX_ORIGINAL_BYTES) {
+        hapticError();
         setError('La imagen es demasiado grande. Probá con otra foto.');
         return;
       }
@@ -162,7 +171,9 @@ export const IdCaptureStep = () => {
         } else {
           setBackDataUrl(dataUrl);
         }
+        hapticSelection();
       } catch (e) {
+        hapticError();
         const code = e instanceof Error ? e.message : '';
         if (code === 'IMAGE_TOO_UNIFORM') {
           setError(
@@ -194,9 +205,11 @@ export const IdCaptureStep = () => {
 
   const handleContinue = () => {
     if (!frontDataUrl || !backDataUrl) {
+      hapticError();
       setError('Necesitamos el frente y el reverso del documento');
       return;
     }
+    hapticPrimary();
     sessionStorage.setItem(SINPE_SESSION_ID_FRONT, frontDataUrl);
     sessionStorage.setItem(SINPE_SESSION_ID_BACK, backDataUrl);
     router.push('/withdraw/review');

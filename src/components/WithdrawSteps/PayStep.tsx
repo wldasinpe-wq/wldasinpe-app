@@ -13,6 +13,11 @@ import {
   SINPE_SESSION_PHONE,
   SINPE_SESSION_PROFILE,
 } from '@/constants/sinpe-session';
+import {
+  hapticError,
+  hapticPrimary,
+  hapticSuccess,
+} from '@/lib/haptics';
 import { TRANSACTION_PENDING_ERROR } from '@/lib/world-minikit-transaction';
 
 const CHAIN_POLL_INTERVAL_MS = 2000;
@@ -197,6 +202,7 @@ export const PayStep = () => {
 
     const amount = parseFloat(amountWldStr);
     if (Number.isNaN(amount) || amount <= 0) {
+      hapticError();
       setError('Monto inválido');
       return;
     }
@@ -207,6 +213,7 @@ export const PayStep = () => {
 
     setError('');
     setPayProof(null);
+    hapticPrimary();
     setButtonState('pending');
 
     try {
@@ -229,6 +236,7 @@ export const PayStep = () => {
           p.transaction_id
         );
         if (!completeRes.ok) {
+          hapticError();
           setPayProof({
             referenceId: p.reference,
             transactionId: p.transaction_id,
@@ -244,18 +252,21 @@ export const PayStep = () => {
           return;
         }
 
+        hapticSuccess();
         setButtonState('success');
         clearWithdrawalSession();
         setTimeout(() => {
           router.push('/home?retiro=completado');
         }, 2000);
       } else {
+        hapticError();
         setButtonState('failed');
         setError('Transferencia cancelada');
         setTimeout(() => setButtonState(undefined), 3000);
       }
     } catch (err) {
       console.error('Pay error:', err);
+      hapticError();
       setButtonState('failed');
       setError('No se pudo completar el envío');
       setTimeout(() => setButtonState(undefined), 3000);
@@ -264,6 +275,7 @@ export const PayStep = () => {
 
   const handleRetryNotify = async () => {
     if (!payProof) return;
+    hapticPrimary();
     setError('');
     setButtonState('pending');
     try {
@@ -272,6 +284,7 @@ export const PayStep = () => {
         payProof.transactionId
       );
       if (!completeRes.ok) {
+        hapticError();
         setButtonState('failed');
         setError(
           retryMessageForCompleteWithdrawalFailure(
@@ -282,6 +295,7 @@ export const PayStep = () => {
         setTimeout(() => setButtonState(undefined), 4000);
         return;
       }
+      hapticSuccess();
       setButtonState('success');
       setPayProof(null);
       clearWithdrawalSession();
@@ -289,6 +303,7 @@ export const PayStep = () => {
         router.push('/home?retiro=completado');
       }, 2000);
     } catch {
+      hapticError();
       setButtonState('failed');
       setError('Error de red al reintentar.');
       setTimeout(() => setButtonState(undefined), 3000);
