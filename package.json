@@ -17,9 +17,7 @@
     "db:migrate:dev": "prisma migrate dev",
     "db:migrate:local": "bash -c 'set -a && [ -f .env.local ] && . ./.env.local && set +a && prisma migrate deploy'",
     "test:db-withdrawal": "tsx --env-file=.env.local scripts/test-withdrawal-db.ts",
-    "test:email-compliance": "tsx --env-file=.env.local scripts/test-email-compliance.ts",
-    "test:withdrawal": "tsx --env-file=.env.local scripts/test-withdrawal-db.ts",
-    "test:compliance-email": "tsx --env-file=.env.local scripts/test-email-compliance.ts"
+    "test:email-compliance": "tsx --env-file=.env.local scripts/test-email-compliance.ts"
   },
   "dependencies": {
     "@prisma/client": "^6.19.0",

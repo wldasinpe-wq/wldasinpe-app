@@ -21,22 +21,6 @@ export default function Home() {
               Convertí tus Worldcoins a colones y recibí el dinero al instante en tu SINPE Móvil
             </p>
           </div>
-
-          {/* Stats/Features Cards */}
-          <div className="grid grid-cols-3 gap-3 w-full">
-            <div className="flex flex-col items-center p-4 border border-gray-300 rounded-sm" style={{ background: 'var(--white-ridivi)' }}>
-              <div className="text-2xl font-bold text-black mb-1">1min</div>
-              <p className="text-xs text-gray-600 text-center">Tiempo promedio</p>
-            </div>
-            <div className="flex flex-col items-center p-4 border border-gray-300 rounded-sm" style={{ background: 'var(--white-ridivi)' }}>
-              <div className="text-2xl font-bold text-black mb-1">24/7</div>
-              <p className="text-xs text-gray-600 text-center">Disponible siempre</p>
-            </div>
-            <div className="flex flex-col items-center p-4 border border-gray-300 rounded-sm" style={{ background: 'var(--white-ridivi)' }}>
-              <div className="text-2xl font-bold text-black mb-1">0.1</div>
-              <p className="text-xs text-gray-600 text-center">WLD mínimo</p>
-            </div>
-          </div>
         </div>
 
         {/* Bottom Section */}
