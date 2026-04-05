@@ -28,6 +28,7 @@ export const WITHDRAWAL_TEST_MOCK = {
     idNumber: '1-0865-0427',
     phoneNumber: '84917263',
     accountNumber: 'CR05015202001026284066',
+    contactEmail: 'retiro-test@example.com',
   },
 
   amounts: {
@@ -97,6 +98,7 @@ export function prismaWithdrawalUncheckedCreateData(
     idNumber: WITHDRAWAL_TEST_MOCK.identity.idNumber,
     phoneNumber: WITHDRAWAL_TEST_MOCK.identity.phoneNumber,
     accountNumber: WITHDRAWAL_TEST_MOCK.identity.accountNumber,
+    contactEmail: WITHDRAWAL_TEST_MOCK.identity.contactEmail,
     amountWld: new Prisma.Decimal(wld),
     amountCrc: new Prisma.Decimal(amountCrc),
     exchangeRate: new Prisma.Decimal(exchangeRate),
@@ -124,6 +126,7 @@ export function buildComplianceEmailInputFromMock(
     walletAddress: WITHDRAWAL_TEST_MOCK.walletAddress,
     phoneNumber: id.phoneNumber,
     accountNumber: id.accountNumber,
+    contactEmail: id.contactEmail,
     firstName: id.firstName,
     lastName: id.lastName,
     idNumber: id.idNumber,

@@ -9,6 +9,8 @@ export type WithdrawalComplianceEmailInput = {
   firstName: string;
   lastName: string;
   idNumber: string;
+  /** User contact email collected in-app (SINPE flow). */
+  contactEmail: string | null;
   amountWld: string;
   /** Estimated net CRC (label clearly in body). */
   amountCrcEstimated: string;
@@ -33,6 +35,9 @@ export function withdrawalToComplianceInput(
     firstName: row.firstName,
     lastName: row.lastName,
     idNumber: row.idNumber,
+    contactEmail:
+      (row as Withdrawal & { contactEmail?: string | null }).contactEmail ??
+      null,
     amountWld: row.amountWld.toString(),
     amountCrcEstimated: row.amountCrc.toString(),
     exchangeRateCrcPerWld: row.exchangeRate.toString(),
@@ -128,6 +133,7 @@ export function buildComplianceEmailPlainText(
     `cuenta_destino: ${input.accountNumber}`,
     `nombre_legal: ${input.firstName} ${input.lastName}`.trim(),
     `numero_identificacion: ${input.idNumber}`,
+    `email_contacto: ${input.contactEmail?.trim() || '(no proporcionado)'}`,
     `monto_wld: ${input.amountWld}`,
     `monto_crc_estimado_neto: ${input.amountCrcEstimated}`,
     `tipo_cambio_crc_por_wld: ${input.exchangeRateCrcPerWld}`,

@@ -2,7 +2,8 @@
  * Send ONE real compliance notification email (Resend) using mock withdrawal data.
  * Does not touch the database — use `pnpm test:db-withdrawal` for that.
  *
- * Subject line is `[Ridivi withdraw] <referenceId>`. The referenceId is built as:
+ * Subject/body match production (`buildComplianceEmailSubject` / `buildComplianceEmailPlainText`).
+ * The referenceId is built as:
  *   <fixture base> + "_email_" + <short unique suffix> (timestamp in base36)
  * so each run gets a fresh idempotency key in Resend and you can tell test sends apart.
  * Production uses only the server-generated reference from initiate-payment (no `_email_` suffix).

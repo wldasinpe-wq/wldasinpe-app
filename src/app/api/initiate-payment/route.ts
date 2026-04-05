@@ -36,6 +36,11 @@ export async function POST(req: NextRequest) {
     const accountNumber = body.accountNumber;
     const idFrontSubmitted = Boolean(body.idFrontSubmitted);
     const idBackSubmitted = Boolean(body.idBackSubmitted);
+    const contactEmailRaw = body.contactEmail;
+    const contactEmail =
+      typeof contactEmailRaw === 'string' && contactEmailRaw.trim()
+        ? contactEmailRaw.trim()
+        : null;
 
     if (!isNonEmptyString(phoneNumber)) {
       return NextResponse.json(
@@ -96,6 +101,7 @@ export async function POST(req: NextRequest) {
         idFrontSubmitted,
         idBackSubmitted,
         idSubmittedAt,
+        contactEmail,
         status: 'PENDING_PAYMENT',
       },
     });
