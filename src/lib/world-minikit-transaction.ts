@@ -5,7 +5,7 @@
 
 export const TRANSACTION_PENDING_ERROR = 'transaction_pending' as const;
 
-export type MinikitPaymentTransactionStatus = {
+type MinikitPaymentTransactionStatus = {
   reference: string;
   transaction_hash: string | null;
   transaction_status: 'pending' | 'mined' | 'failed';

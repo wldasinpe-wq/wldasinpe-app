@@ -51,7 +51,7 @@ export const WITHDRAWAL_TEST_MOCK = {
   },
 } as const;
 
-export function resolveAmountsFromMock(wld: number) {
+function resolveAmountsFromMock(wld: number) {
   const m = WITHDRAWAL_TEST_MOCK.amounts;
   if (
     m.amountCrcNet != null &&

@@ -12,12 +12,12 @@ import {
   type WithdrawalComplianceEmailInput,
 } from './compliance-content';
 
-export type SendComplianceResult =
+type SendComplianceResult =
   | { sent: true; providerId?: string; emailEventId?: string }
   | { sent: false; skipped: true; reason: string; emailEventId?: string }
   | { sent: false; skipped: false; error: string; emailEventId?: string };
 
-export type SendWithdrawalComplianceOptions = {
+type SendWithdrawalComplianceOptions = {
   /** Override recipient (production: COMPLIANCE_EMAIL_TO). */
   to?: string;
   /** Override sender (production: COMPLIANCE_EMAIL_FROM). */

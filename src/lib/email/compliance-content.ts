@@ -1,5 +1,15 @@
 import type { Withdrawal } from '@prisma/client';
 
+/**
+ * `contactEmail` exists on the DB model, but some toolchains resolve an older generated
+ * `Withdrawal` shape; reading via a keyed record avoids property errors without lying about
+ * the whole row type.
+ */
+function readWithdrawalContactEmail(row: Withdrawal): string | null {
+  const v = (row as unknown as Record<string, unknown>)['contactEmail'];
+  return typeof v === 'string' ? v : null;
+}
+
 /** Fields required to build the Ridivi / internal compliance notification (plain text). */
 export type WithdrawalComplianceEmailInput = {
   referenceId: string;
@@ -20,7 +30,7 @@ export type WithdrawalComplianceEmailInput = {
   txHash: string | null;
 };
 
-export function appEnvironmentLabel(): string {
+function appEnvironmentLabel(): string {
   return process.env.VERCEL_ENV ?? process.env.NODE_ENV ?? 'development';
 }
 
@@ -35,9 +45,7 @@ export function withdrawalToComplianceInput(
     firstName: row.firstName,
     lastName: row.lastName,
     idNumber: row.idNumber,
-    contactEmail:
-      (row as Withdrawal & { contactEmail?: string | null }).contactEmail ??
-      null,
+    contactEmail: readWithdrawalContactEmail(row),
     amountWld: row.amountWld.toString(),
     amountCrcEstimated: row.amountCrc.toString(),
     exchangeRateCrcPerWld: row.exchangeRate.toString(),
@@ -47,7 +55,7 @@ export function withdrawalToComplianceInput(
   };
 }
 
-export type ComplianceEmailSubjectInput = Pick<
+type ComplianceEmailSubjectInput = Pick<
   WithdrawalComplianceEmailInput,
   'referenceId' | 'txHash' | 'amountWld' | 'amountCrcEstimated'
 >;

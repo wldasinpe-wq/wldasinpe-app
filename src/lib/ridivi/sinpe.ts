@@ -1,7 +1,7 @@
 const TOKEN_PATH = '/v5/auth/token';
 const PHONE_INFO_PATH = '/v5/sinpe/phoneInfo';
 
-export type RidiviPhoneInfo = {
+type RidiviPhoneInfo = {
   IdMonedero: number;
   CodEntidad: number;
   Identificacion: string;

@@ -11,7 +11,7 @@ import { worldchain } from 'viem/chains';
 const DECIMALS = 18;
 
 /** WLD ERC-20 on World Chain mainnet (address book), EIP-55 checksummed. */
-export const WLD_WORLDCHAIN_DEFAULT =
+const WLD_WORLDCHAIN_DEFAULT =
   '0x2cFc85d8E48F8EAB294be644d9E25C3030863003' as const;
 
 /** Public RPCs — Thirdweb/dRPC first; Alchemy `/public` often rate-limits server IPs. */
@@ -21,7 +21,7 @@ const WORLDCHAIN_PUBLIC_RPCS: readonly string[] = [
   'https://worldchain-mainnet.g.alchemy.com/public',
 ];
 
-export function getWldTokenAddress(): `0x${string}` {
+function getWldTokenAddress(): `0x${string}` {
   const fromEnv = process.env.NEXT_PUBLIC_WLD_TOKEN_ADDRESS;
   if (
     typeof fromEnv === 'string' &&

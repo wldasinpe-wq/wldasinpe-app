@@ -16,8 +16,8 @@ import { formatUnits } from 'viem';
 
 const WLD_DECIMALS = 18;
 
-export type WldBalanceLoadState = 'loading' | 'ready' | 'error';
-export type WldBalanceErrorKind = 'no_wallet' | 'rpc' | null;
+type WldBalanceLoadState = 'loading' | 'ready' | 'error';
+type WldBalanceErrorKind = 'no_wallet' | 'rpc' | null;
 
 type WldBalanceContextValue = {
   wei: bigint | null;

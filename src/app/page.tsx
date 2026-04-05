@@ -2,8 +2,6 @@ import { Page } from '@/components/PageLayout';
 import { AuthButton } from '../components/AuthButton';
 
 export default function Home() {
-  console.log('[Landing Page] Rendering at', new Date().toISOString());
-  
   return (
     <Page>
       <Page.Main className="flex flex-col items-center justify-between min-h-screen px-6 py-12">

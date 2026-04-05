@@ -2,7 +2,7 @@
  * World "Add Money" quick action (bridge / on-ramps into World Wallet).
  * @see https://docs.world.org/mini-apps/sharing/add-money-qa
  */
-export const WORLD_ADD_MONEY_APP_ID =
+const WORLD_ADD_MONEY_APP_ID =
   'app_e7d27c5ce2234e00558776f227f791ef' as const;
 
 /** WLD on World Chain mainnet (same default as `wld-onchain`). */

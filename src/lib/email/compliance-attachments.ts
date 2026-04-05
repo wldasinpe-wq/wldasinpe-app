@@ -5,7 +5,7 @@ const MAX_ATTACHMENT_BYTES = 4_500_000;
 /**
  * Parses a browser data URL (JPEG/PNG/WebP) into a Resend attachment (base64 content).
  */
-export function dataUrlToComplianceAttachment(
+function dataUrlToComplianceAttachment(
   dataUrl: string,
   filename: string
 ): { attachment: Attachment; approxBytes: number } | null {
