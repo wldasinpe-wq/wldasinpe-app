@@ -14,8 +14,7 @@ import {
 import { wldWeiToKeypadAmount, wldWeiToNumber } from '@/lib/wld-onchain';
 import {
   SINPE_SESSION_AMOUNT_WLD,
-  SINPE_SESSION_ID_BACK,
-  SINPE_SESSION_ID_FRONT,
+  SINPE_SESSION_CONTACT_EMAIL,
   SINPE_SESSION_PHONE,
   SINPE_SESSION_PROFILE,
 } from '@/constants/sinpe-session';
@@ -54,14 +53,13 @@ export const AmountStep = () => {
   useEffect(() => {
     const savedPhone = sessionStorage.getItem(SINPE_SESSION_PHONE);
     const profileRaw = sessionStorage.getItem(SINPE_SESSION_PROFILE);
-    const idFront = sessionStorage.getItem(SINPE_SESSION_ID_FRONT);
-    const idBack = sessionStorage.getItem(SINPE_SESSION_ID_BACK);
+    const contactEmail = sessionStorage.getItem(SINPE_SESSION_CONTACT_EMAIL);
     if (!savedPhone || !profileRaw) {
       router.replace('/withdraw/phone');
       return;
     }
-    if (!idFront || !idBack) {
-      router.replace('/withdraw/id');
+    if (!contactEmail?.trim()) {
+      router.replace('/withdraw/email');
       return;
     }
     setPhoneNumber(savedPhone);
@@ -157,7 +155,7 @@ export const AmountStep = () => {
 
     setError('');
     sessionStorage.setItem(SINPE_SESSION_AMOUNT_WLD, amountWLD.trim());
-    router.push('/withdraw/review');
+    router.push('/withdraw/id');
   };
 
   const amountCRC = parseFloat(amountWLD || '0') * EXCHANGE_RATES.WLD_TO_CRC;
@@ -183,7 +181,7 @@ export const AmountStep = () => {
   return (
     <div className="mx-auto flex h-full min-h-0 w-full max-w-md flex-col">
       <div className="shrink-0 space-y-4 px-1 pt-2">
-        <StepProgress currentStep={4} totalSteps={6} />
+        <StepProgress currentStep={4} totalSteps={7} />
         <StepHeader
           title="Monto a retirar"
           description="WLD a tu cuenta SINPE"

@@ -10,6 +10,7 @@ import {
 } from '@/constants/exchange';
 import {
   SINPE_SESSION_AMOUNT_WLD,
+  SINPE_SESSION_CONTACT_EMAIL,
   SINPE_SESSION_ID_BACK,
   SINPE_SESSION_ID_FRONT,
   SINPE_SESSION_PAY_REFERENCE,
@@ -40,9 +41,14 @@ export const InitiateWithdrawalStep = () => {
     const idFront = sessionStorage.getItem(SINPE_SESSION_ID_FRONT);
     const idBack = sessionStorage.getItem(SINPE_SESSION_ID_BACK);
     const amountRaw = sessionStorage.getItem(SINPE_SESSION_AMOUNT_WLD);
+    const contactEmail = sessionStorage.getItem(SINPE_SESSION_CONTACT_EMAIL);
 
-    if (!phone || !profileRaw || !idFront || !idBack) {
+    if (!phone || !profileRaw) {
       router.replace('/withdraw/phone');
+      return;
+    }
+    if (!contactEmail?.trim()) {
+      router.replace('/withdraw/email');
       return;
     }
     if (!amountRaw?.trim()) {
@@ -53,6 +59,10 @@ export const InitiateWithdrawalStep = () => {
     const amount = parseFloat(amountRaw);
     if (Number.isNaN(amount) || amount < LIMITS.MIN_WLD) {
       router.replace('/withdraw/amount');
+      return;
+    }
+    if (!idFront || !idBack) {
+      router.replace('/withdraw/id');
       return;
     }
 
@@ -100,6 +110,8 @@ export const InitiateWithdrawalStep = () => {
         throw new Error('missing profile');
       }
       const { firstName, lastName } = splitLegalName(profile.nombreCliente);
+      const emailStored =
+        sessionStorage.getItem(SINPE_SESSION_CONTACT_EMAIL)?.trim() ?? '';
       initiateBody = {
         phoneNumber: phoneNumber.trim(),
         amountWLD: amount,
@@ -109,6 +121,7 @@ export const InitiateWithdrawalStep = () => {
         accountNumber: profile.cuentaInterna,
         idFrontSubmitted: Boolean(idFront),
         idBackSubmitted: Boolean(idBack),
+        contactEmail: emailStored,
       };
     } catch {
       setButtonState('failed');
@@ -186,7 +199,7 @@ export const InitiateWithdrawalStep = () => {
 
   return (
     <div className="mx-auto grid w-full max-w-md gap-8">
-      <StepProgress currentStep={5} totalSteps={6} />
+      <StepProgress currentStep={6} totalSteps={7} />
 
       <StepHeader
         title="Resumen del retiro"

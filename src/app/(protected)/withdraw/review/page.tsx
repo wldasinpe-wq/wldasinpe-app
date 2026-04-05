@@ -14,7 +14,7 @@ export default async function WithdrawReviewPage() {
         <TopBar
           startAdornment={
             <Link
-              href="/withdraw/amount"
+              href="/withdraw/id"
               className="text-gray-900 transition-colors hover:text-gray-600"
             >
               <svg

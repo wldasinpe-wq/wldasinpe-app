@@ -4,7 +4,10 @@ import { Button } from '@worldcoin/mini-apps-ui-kit-react';
 import NextImage from 'next/image';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
+import { LIMITS } from '@/constants/exchange';
 import {
+  SINPE_SESSION_AMOUNT_WLD,
+  SINPE_SESSION_CONTACT_EMAIL,
   SINPE_SESSION_ID_BACK,
   SINPE_SESSION_ID_FRONT,
   SINPE_SESSION_PHONE,
@@ -15,8 +18,36 @@ import { StepHeader } from './ui/StepHeader';
 import { InfoBox } from './ui/InfoBox';
 
 const MAX_ORIGINAL_BYTES = 12 * 1024 * 1024;
+/** Reject trivially empty / corrupt uploads (real camera picks are usually much larger). */
+const MIN_ORIGINAL_BYTES = 2 * 1024;
 const COMPRESS_MAX_WIDTH = 1280;
 const JPEG_QUALITY = 0.82;
+/** Sampled luminance variance (0–255 scale); below this ≈ solid color / lens cap / black frame. */
+const MIN_LUMINANCE_VARIANCE = 18;
+const MIN_IMAGE_DIMENSION = 80;
+
+function sampledLuminanceVariance(
+  ctx: CanvasRenderingContext2D,
+  w: number,
+  h: number
+): number {
+  const step = Math.max(1, Math.floor(Math.max(w, h) / 72));
+  const data = ctx.getImageData(0, 0, w, h).data;
+  const lumas: number[] = [];
+  for (let y = 0; y < h; y += step) {
+    for (let x = 0; x < w; x += step) {
+      const i = (Math.floor(y) * w + Math.floor(x)) * 4;
+      const r = data[i] ?? 0;
+      const g = data[i + 1] ?? 0;
+      const b = data[i + 2] ?? 0;
+      lumas.push(0.299 * r + 0.587 * g + 0.114 * b);
+    }
+  }
+  const n = lumas.length;
+  if (n < 8) return 0;
+  const mean = lumas.reduce((a, v) => a + v, 0) / n;
+  return lumas.reduce((a, v) => a + (v - mean) ** 2, 0) / n;
+}
 
 async function compressImageFile(file: File): Promise<string> {
   return new Promise((resolve, reject) => {
@@ -25,6 +56,10 @@ async function compressImageFile(file: File): Promise<string> {
     img.onload = () => {
       URL.revokeObjectURL(objectUrl);
       let { width, height } = img;
+      if (width < MIN_IMAGE_DIMENSION || height < MIN_IMAGE_DIMENSION) {
+        reject(new Error('IMAGE_TOO_SMALL'));
+        return;
+      }
       if (width > COMPRESS_MAX_WIDTH) {
         height = (height * COMPRESS_MAX_WIDTH) / width;
         width = COMPRESS_MAX_WIDTH;
@@ -38,6 +73,15 @@ async function compressImageFile(file: File): Promise<string> {
         return;
       }
       ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+      const variance = sampledLuminanceVariance(
+        ctx,
+        canvas.width,
+        canvas.height
+      );
+      if (variance < MIN_LUMINANCE_VARIANCE) {
+        reject(new Error('IMAGE_TOO_UNIFORM'));
+        return;
+      }
       resolve(canvas.toDataURL('image/jpeg', JPEG_QUALITY));
     };
     img.onerror = () => {
@@ -63,8 +107,23 @@ export const IdCaptureStep = () => {
   useEffect(() => {
     const phone = sessionStorage.getItem(SINPE_SESSION_PHONE);
     const profile = sessionStorage.getItem(SINPE_SESSION_PROFILE);
+    const contactEmail = sessionStorage.getItem(SINPE_SESSION_CONTACT_EMAIL);
+    const amountRaw = sessionStorage.getItem(SINPE_SESSION_AMOUNT_WLD);
     if (!phone || !profile) {
       router.replace('/withdraw/phone');
+      return;
+    }
+    if (!contactEmail?.trim()) {
+      router.replace('/withdraw/email');
+      return;
+    }
+    if (!amountRaw?.trim()) {
+      router.replace('/withdraw/amount');
+      return;
+    }
+    const amount = parseFloat(amountRaw);
+    if (Number.isNaN(amount) || amount < LIMITS.MIN_WLD) {
+      router.replace('/withdraw/amount');
       return;
     }
     setFrontDataUrl(sessionStorage.getItem(SINPE_SESSION_ID_FRONT));
@@ -84,6 +143,12 @@ export const IdCaptureStep = () => {
         setError('Elegí un archivo de imagen válido');
         return;
       }
+      if (file.size < MIN_ORIGINAL_BYTES) {
+        setError(
+          'El archivo es demasiado chico o vacío. Hacé otra foto del documento.'
+        );
+        return;
+      }
       if (file.size > MAX_ORIGINAL_BYTES) {
         setError('La imagen es demasiado grande. Probá con otra foto.');
         return;
@@ -97,8 +162,17 @@ export const IdCaptureStep = () => {
         } else {
           setBackDataUrl(dataUrl);
         }
-      } catch {
-        setError('No se pudo procesar la imagen. Intentá de nuevo.');
+      } catch (e) {
+        const code = e instanceof Error ? e.message : '';
+        if (code === 'IMAGE_TOO_UNIFORM') {
+          setError(
+            'La imagen se ve vacía o muy uniforme (p. ej. tapa de lente o pantalla en negro). Hacé otra foto con buena luz.'
+          );
+        } else if (code === 'IMAGE_TOO_SMALL') {
+          setError('La imagen es demasiado chica. Acercá más el documento.');
+        } else {
+          setError('No se pudo procesar la imagen. Intentá de nuevo.');
+        }
       } finally {
         setIsProcessing(false);
       }
@@ -125,7 +199,7 @@ export const IdCaptureStep = () => {
     }
     sessionStorage.setItem(SINPE_SESSION_ID_FRONT, frontDataUrl);
     sessionStorage.setItem(SINPE_SESSION_ID_BACK, backDataUrl);
-    router.push('/withdraw/amount');
+    router.push('/withdraw/review');
   };
 
   if (isLoading) {
@@ -140,7 +214,7 @@ export const IdCaptureStep = () => {
 
   return (
     <div className="grid w-full gap-8 max-w-md">
-      <StepProgress currentStep={3} totalSteps={6} />
+      <StepProgress currentStep={5} totalSteps={7} />
 
       <StepHeader
         title="Identificación"

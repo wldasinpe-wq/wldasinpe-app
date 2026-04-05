@@ -307,7 +307,7 @@ export const PayStep = () => {
 
   return (
     <div className="mx-auto grid w-full max-w-md gap-8">
-      <StepProgress currentStep={6} totalSteps={6} />
+      <StepProgress currentStep={7} totalSteps={7} />
 
       <StepHeader
         title="Enviar WLD"

@@ -13,7 +13,7 @@ export default async function WithdrawAmountPage() {
       <Page.Header className="p-0">
         <TopBar
           startAdornment={
-            <Link href="/withdraw/id" className="text-gray-900 hover:text-gray-600 transition-colors">
+            <Link href="/withdraw/email" className="text-gray-900 hover:text-gray-600 transition-colors">
               <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                 <path d="M19 12H5M12 19l-7-7 7-7"/>
               </svg>

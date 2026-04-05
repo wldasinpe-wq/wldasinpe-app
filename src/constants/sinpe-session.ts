@@ -2,6 +2,8 @@
 export const SINPE_SESSION_PHONE = 'sinpe_phone';
 /** JSON: { nombreCliente, identificacion, cuentaInterna } from Ridivi phoneInfo */
 export const SINPE_SESSION_PROFILE = 'sinpe_ridi_profile';
+/** Normalized (trim + lowercase) contact email for compliance records */
+export const SINPE_SESSION_CONTACT_EMAIL = 'sinpe_contact_email';
 /** JPEG data URL (~compressed) for ID front */
 export const SINPE_SESSION_ID_FRONT = 'sinpe_id_front';
 /** JPEG data URL (~compressed) for ID back */

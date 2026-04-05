@@ -60,7 +60,7 @@ export const ConfirmStep = () => {
   }, [router]);
 
   const handleContinue = () => {
-    router.push('/withdraw/id');
+    router.push('/withdraw/email');
   };
 
   if (isLoading || !profile) {
@@ -73,7 +73,7 @@ export const ConfirmStep = () => {
 
   return (
     <div className="grid w-full gap-8 max-w-md">
-      <StepProgress currentStep={2} totalSteps={6} />
+      <StepProgress currentStep={2} totalSteps={7} />
 
       <StepHeader
         title="Confirmar cuenta destino"
