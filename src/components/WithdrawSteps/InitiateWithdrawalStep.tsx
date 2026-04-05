@@ -16,6 +16,7 @@ import {
   SINPE_SESSION_PHONE,
   SINPE_SESSION_PROFILE,
 } from '@/constants/sinpe-session';
+import { splitLegalName } from '@/lib/split-legal-name';
 import { InfoBox } from './ui/InfoBox';
 import { StepHeader } from './ui/StepHeader';
 import { StepProgress } from './ui/StepProgress';
@@ -78,14 +79,49 @@ export const InitiateWithdrawalStep = () => {
     setError('');
     setButtonState('pending');
 
+    const profileRaw = sessionStorage.getItem(SINPE_SESSION_PROFILE);
+    const idFront = sessionStorage.getItem(SINPE_SESSION_ID_FRONT);
+    const idBack = sessionStorage.getItem(SINPE_SESSION_ID_BACK);
+    let initiateBody: Record<string, string | number | boolean>;
+
+    try {
+      const profile = profileRaw
+        ? (JSON.parse(profileRaw) as {
+            nombreCliente?: string;
+            identificacion?: string;
+            cuentaInterna?: string;
+          })
+        : null;
+      if (
+        !profile?.nombreCliente ||
+        !profile.identificacion ||
+        !profile.cuentaInterna
+      ) {
+        throw new Error('missing profile');
+      }
+      const { firstName, lastName } = splitLegalName(profile.nombreCliente);
+      initiateBody = {
+        phoneNumber: phoneNumber.trim(),
+        amountWLD: amount,
+        firstName,
+        lastName,
+        idNumber: profile.identificacion,
+        accountNumber: profile.cuentaInterna,
+        idFrontSubmitted: Boolean(idFront),
+        idBackSubmitted: Boolean(idBack),
+      };
+    } catch {
+      setButtonState('failed');
+      setError('Faltan datos del destinatario. Volvé al inicio del retiro.');
+      setTimeout(() => setButtonState(undefined), 3000);
+      return;
+    }
+
     try {
       const res = await fetch('/api/initiate-payment', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          phoneNumber: phoneNumber.trim(),
-          amountWLD: amount,
-        }),
+        body: JSON.stringify(initiateBody),
       });
 
       if (!res.ok) {

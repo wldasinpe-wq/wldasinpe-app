@@ -8,17 +8,28 @@
   "type": "module",
   "scripts": {
     "dev": "next dev",
-    "build": "next build",
+    "build": "prisma generate && next build",
     "start": "next start",
-    "lint": "next lint"
+    "lint": "next lint",
+    "postinstall": "prisma generate",
+    "db:generate": "prisma generate",
+    "db:migrate": "prisma migrate deploy",
+    "db:migrate:dev": "prisma migrate dev",
+    "db:migrate:local": "bash -c 'set -a && [ -f .env.local ] && . ./.env.local && set +a && prisma migrate deploy'",
+    "test:db-withdrawal": "tsx --env-file=.env.local scripts/test-withdrawal-db.ts",
+    "test:email-compliance": "tsx --env-file=.env.local scripts/test-email-compliance.ts",
+    "test:withdrawal": "tsx --env-file=.env.local scripts/test-withdrawal-db.ts",
+    "test:compliance-email": "tsx --env-file=.env.local scripts/test-email-compliance.ts"
   },
   "dependencies": {
+    "@prisma/client": "^6.19.0",
     "@worldcoin/mini-apps-ui-kit-react": "^1.0.2",
     "@worldcoin/minikit-js": "latest",
     "@worldcoin/minikit-react": "latest",
     "clsx": "^2.1.1",
     "iconoir-react": "^7.11.0",
     "next": "^15.2.8",
+    "resend": "^4.0.0",
     "next-auth": "^5.0.0-beta.25",
     "react": "^19.0.3",
     "react-dom": "^19.0.3",
@@ -26,6 +37,7 @@
     "viem": "2.23.5"
   },
   "devDependencies": {
+    "prisma": "^6.19.0",
     "@eslint/eslintrc": "^3",
     "@tailwindcss/postcss": "^4",
     "@types/node": "^20",
@@ -35,6 +47,7 @@
     "eslint": "^9",
     "eslint-config-next": "15.2.3",
     "tailwindcss": "^4",
+    "tsx": "^4.19.0",
     "typescript": "^5"
   }
 }

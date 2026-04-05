@@ -1,0 +1,82 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum WithdrawalStatus {
+  PENDING_PAYMENT
+  SUBMITTED
+  EMAILED
+  FAILED
+}
+
+enum EmailEventStatus {
+  QUEUED
+  SENT
+  FAILED
+  SKIPPED
+}
+
+/// One row per compliance email attempt (audit / retries), per INFRA_RECOMMENDATIONS.md.
+model EmailEvent {
+  id        String @id @default(cuid())
+  withdrawalId String? @map("withdrawal_id")
+  withdrawal   Withdrawal? @relation(fields: [withdrawalId], references: [id], onDelete: SetNull)
+
+  referenceId String @map("reference_id")
+  kind        String @default("withdrawal_compliance")
+  status      EmailEventStatus
+  provider    String @default("resend")
+  providerMessageId String? @map("provider_message_id")
+  errorMessage      String? @map("error_message")
+  toAddress   String @map("to_address")
+  fromAddress String @map("from_address")
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@index([referenceId])
+  @@index([withdrawalId])
+  @@map("email_events")
+}
+
+/// Internal withdrawal record (not official compliance storage).
+model Withdrawal {
+  id        String @id @default(cuid())
+  referenceId String @unique @map("reference_id")
+  walletAddress String @map("wallet_address")
+
+  firstName     String @map("first_name")
+  lastName      String @map("last_name")
+  idNumber      String @map("id_number")
+  phoneNumber   String @map("phone_number")
+  accountNumber String @map("account_number")
+
+  amountWld     Decimal @map("amount_wld") @db.Decimal(20, 8)
+  /// Estimated net CRC to user (after commission), same basis as UI/email.
+  amountCrc     Decimal @map("amount_crc") @db.Decimal(20, 4)
+  /// CRC per 1 WLD at initiation.
+  exchangeRate  Decimal @map("exchange_rate") @db.Decimal(20, 8)
+  commissionCrc Decimal @map("commission_crc") @db.Decimal(20, 4)
+
+  transactionId String? @map("transaction_id")
+  txHash        String? @map("tx_hash")
+  status        WithdrawalStatus @default(PENDING_PAYMENT)
+  lastError     String? @map("last_error")
+
+  idFrontSubmitted Boolean   @default(false) @map("id_front_submitted")
+  idBackSubmitted  Boolean   @default(false) @map("id_back_submitted")
+  idSubmittedAt    DateTime? @map("id_submitted_at")
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  emailEvents EmailEvent[]
+
+  @@index([walletAddress])
+  @@map("withdrawals")
+}

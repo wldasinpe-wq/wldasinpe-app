@@ -79,6 +79,12 @@ export const Pay = () => {
         body: JSON.stringify({
           phoneNumber: phoneNumber.trim(),
           amountWLD: parseFloat(amountWLD),
+          firstName: 'Demo',
+          lastName: 'Pay',
+          idNumber: '000000000',
+          accountNumber: '000000000000',
+          idFrontSubmitted: true,
+          idBackSubmitted: true,
         }),
       });
 

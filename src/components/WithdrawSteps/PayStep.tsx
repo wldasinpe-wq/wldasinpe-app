@@ -3,7 +3,7 @@
 import { Button, LiveFeedback } from '@worldcoin/mini-apps-ui-kit-react';
 import { MiniKit, Tokens, tokenToDecimals } from '@worldcoin/minikit-js';
 import { useRouter } from 'next/navigation';
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { formatCurrency } from '@/constants/exchange';
 import {
   SINPE_SESSION_AMOUNT_WLD,
@@ -36,6 +36,10 @@ export const PayStep = () => {
   const [buttonState, setButtonState] = useState<
     'pending' | 'success' | 'failed' | undefined
   >(undefined);
+  const [payProof, setPayProof] = useState<{
+    referenceId: string;
+    transactionId: string;
+  } | null>(null);
 
   useEffect(() => {
     const ref = sessionStorage.getItem(SINPE_SESSION_PAY_REFERENCE);
@@ -53,6 +57,22 @@ export const PayStep = () => {
     setIsLoading(false);
   }, [router]);
 
+  const finalizeOnServer = useCallback(
+    async (referenceId: string, transactionId: string) => {
+      const res = await fetch('/api/complete-withdrawal', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          referenceId,
+          transactionId,
+          txHash: null,
+        }),
+      });
+      return res;
+    },
+    []
+  );
+
   const handlePay = async () => {
     if (!payReference) return;
 
@@ -67,6 +87,7 @@ export const PayStep = () => {
       '0xce58b0A297714367b4dF592f3Aba82dA4e690b3a';
 
     setError('');
+    setPayProof(null);
     setButtonState('pending');
 
     try {
@@ -83,6 +104,21 @@ export const PayStep = () => {
       });
 
       if (result.finalPayload.status === 'success') {
+        const p = result.finalPayload;
+        const completeRes = await finalizeOnServer(p.reference, p.transaction_id);
+        if (!completeRes.ok) {
+          setPayProof({
+            referenceId: p.reference,
+            transactionId: p.transaction_id,
+          });
+          setButtonState('failed');
+          setError(
+            'La transferencia se completó, pero no pudimos registrar el retiro ni enviar el aviso. Tocá Reintentar o contactá soporte con la referencia.'
+          );
+          setTimeout(() => setButtonState(undefined), 4000);
+          return;
+        }
+
         setButtonState('success');
         clearWithdrawalSession();
         setTimeout(() => {
@@ -97,6 +133,34 @@ export const PayStep = () => {
       console.error('Pay error:', err);
       setButtonState('failed');
       setError('No se pudo completar el envío');
+      setTimeout(() => setButtonState(undefined), 3000);
+    }
+  };
+
+  const handleRetryNotify = async () => {
+    if (!payProof) return;
+    setError('');
+    setButtonState('pending');
+    try {
+      const completeRes = await finalizeOnServer(
+        payProof.referenceId,
+        payProof.transactionId
+      );
+      if (!completeRes.ok) {
+        setButtonState('failed');
+        setError('Seguimos sin poder enviar el aviso. Contactá soporte.');
+        setTimeout(() => setButtonState(undefined), 4000);
+        return;
+      }
+      setButtonState('success');
+      setPayProof(null);
+      clearWithdrawalSession();
+      setTimeout(() => {
+        router.push('/home');
+      }, 2000);
+    } catch {
+      setButtonState('failed');
+      setError('Error de red al reintentar.');
       setTimeout(() => setButtonState(undefined), 3000);
     }
   };
@@ -143,6 +207,24 @@ export const PayStep = () => {
         </p>
       ) : null}
 
+      {payProof ? (
+        <div className="px-2 text-center">
+          <p className="mb-2 font-mono text-xs text-gray-600">
+            Ref: {payProof.referenceId}
+          </p>
+          <Button
+            type="button"
+            onClick={() => void handleRetryNotify()}
+            disabled={buttonState === 'pending'}
+            size="sm"
+            variant="secondary"
+            className="w-full rounded-sm"
+          >
+            Reintentar registro y aviso
+          </Button>
+        </div>
+      ) : null}
+
       <div className="px-2">
         <LiveFeedback
           label={{
@@ -155,7 +237,7 @@ export const PayStep = () => {
         >
           <Button
             onClick={() => void handlePay()}
-            disabled={buttonState === 'pending'}
+            disabled={buttonState === 'pending' || payProof !== null}
             size="lg"
             variant="primary"
             className="w-full rounded-sm text-base font-medium tracking-wide shadow"

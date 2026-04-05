@@ -42,3 +42,5 @@ next-env.d.ts
 !.env.sample
 
 llms-full.txt
+
+test-image.jpeg
