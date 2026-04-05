@@ -54,6 +54,17 @@ export async function POST(req: NextRequest) {
     }
 
     const sendEmail = emailOutboxConfigured();
+    if (process.env.NODE_ENV === 'production' && !sendEmail) {
+      return NextResponse.json(
+        {
+          error: 'compliance_email_not_configured',
+          message:
+            'Set RESEND_API_KEY, COMPLIANCE_EMAIL_FROM, and COMPLIANCE_EMAIL_TO.',
+        },
+        { status: 503 }
+      );
+    }
+
     let complianceAttachments: Attachment[] | undefined;
     let appIdForWorld: string | null = null;
 
