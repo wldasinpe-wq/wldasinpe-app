@@ -1,11 +1,25 @@
+import type { Attachment } from 'resend';
 import { NextRequest, NextResponse } from 'next/server';
 
 import { auth } from '@/auth';
+import { complianceAttachmentsFromDataUrls } from '@/lib/email/compliance-attachments';
 import { sendWithdrawalComplianceEmail } from '@/lib/email/send-withdrawal-compliance';
 import { prisma } from '@/lib/prisma';
+import {
+  TRANSACTION_PENDING_ERROR,
+  fetchMinikitPaymentTransaction,
+} from '@/lib/world-minikit-transaction';
 
 function normalizeWallet(a: string) {
   return a.toLowerCase();
+}
+
+function emailOutboxConfigured() {
+  return (
+    Boolean(process.env.RESEND_API_KEY?.trim()) &&
+    Boolean(process.env.COMPLIANCE_EMAIL_TO?.trim()) &&
+    Boolean(process.env.COMPLIANCE_EMAIL_FROM?.trim())
+  );
 }
 
 export async function POST(req: NextRequest) {
@@ -23,16 +37,57 @@ export async function POST(req: NextRequest) {
       typeof body.referenceId === 'string' ? body.referenceId.trim() : '';
     const transactionId =
       typeof body.transactionId === 'string' ? body.transactionId.trim() : '';
-    const txHash =
+    const txHashFromClient =
       typeof body.txHash === 'string' && body.txHash.trim()
         ? body.txHash.trim()
         : null;
+    const idFrontDataUrl =
+      typeof body.idFrontDataUrl === 'string' ? body.idFrontDataUrl : '';
+    const idBackDataUrl =
+      typeof body.idBackDataUrl === 'string' ? body.idBackDataUrl : '';
 
     if (!referenceId || !transactionId) {
       return NextResponse.json(
         { error: 'referenceId and transactionId are required' },
         { status: 400 }
       );
+    }
+
+    const sendEmail = emailOutboxConfigured();
+    let complianceAttachments: Attachment[] | undefined;
+    let appIdForWorld: string | null = null;
+
+    if (sendEmail) {
+      appIdForWorld = process.env.NEXT_PUBLIC_APP_ID?.trim() ?? null;
+      if (!appIdForWorld) {
+        return NextResponse.json(
+          {
+            error:
+              'NEXT_PUBLIC_APP_ID is required to confirm on-chain payment before email',
+          },
+          { status: 500 }
+        );
+      }
+      if (!idFrontDataUrl || !idBackDataUrl) {
+        return NextResponse.json(
+          {
+            error:
+              'idFrontDataUrl and idBackDataUrl are required when compliance email is configured',
+          },
+          { status: 400 }
+        );
+      }
+      const parsed = complianceAttachmentsFromDataUrls(
+        idFrontDataUrl,
+        idBackDataUrl
+      );
+      if (!parsed) {
+        return NextResponse.json(
+          { error: 'Invalid or oversized ID image data URLs' },
+          { status: 400 }
+        );
+      }
+      complianceAttachments = parsed;
     }
 
     const withdrawal = await prisma.withdrawal.findUnique({
@@ -51,38 +106,122 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ ok: true, idempotent: true });
     }
 
+    /** On-chain hash: from World API when emailing; otherwise optional client hint for dev. */
+    const txHashForSubmitted = sendEmail ? null : txHashFromClient;
+
     if (withdrawal.status === 'PENDING_PAYMENT') {
       await prisma.withdrawal.update({
         where: { id: withdrawal.id },
         data: {
           transactionId,
-          txHash,
+          txHash: txHashForSubmitted,
           status: 'SUBMITTED',
           lastError: null,
         },
       });
     } else if (withdrawal.status === 'SUBMITTED') {
-      // Email retry path: keep existing chain fields unless client sends updates
       await prisma.withdrawal.update({
         where: { id: withdrawal.id },
         data: {
           transactionId,
-          ...(txHash ? { txHash } : {}),
+          ...(txHashForSubmitted ? { txHash: txHashForSubmitted } : {}),
           lastError: null,
         },
       });
     } else {
       return NextResponse.json(
-        { error: 'Withdrawal cannot be completed' },
-        { status: 409 }
+        { error: 'invalid_withdrawal_status' },
+        { status: 422 }
       );
     }
 
-    const fresh = await prisma.withdrawal.findUniqueOrThrow({
+    let rowForEmail = await prisma.withdrawal.findUniqueOrThrow({
       where: { id: withdrawal.id },
     });
 
-    const emailResult = await sendWithdrawalComplianceEmail(fresh);
+    if (sendEmail) {
+      const appId = appIdForWorld;
+      if (!appId) {
+        return NextResponse.json(
+          { error: 'server_misconfigured' },
+          { status: 500 }
+        );
+      }
+      let chainTx;
+      try {
+        chainTx = await fetchMinikitPaymentTransaction(transactionId, appId);
+      } catch (e) {
+        console.error('[complete-withdrawal] World transaction lookup:', e);
+        return NextResponse.json(
+          { error: 'transaction_lookup_failed' },
+          { status: 503 }
+        );
+      }
+
+      if (!chainTx) {
+        return NextResponse.json(
+          { error: 'transaction_not_found' },
+          { status: 404 }
+        );
+      }
+
+      if (chainTx.reference !== referenceId) {
+        return NextResponse.json(
+          { error: 'reference_mismatch' },
+          { status: 403 }
+        );
+      }
+
+      if (chainTx.transaction_status === 'pending') {
+        return NextResponse.json(
+          {
+            error: TRANSACTION_PENDING_ERROR,
+            transaction_status: 'pending',
+          },
+          { status: 409 }
+        );
+      }
+
+      if (chainTx.transaction_status === 'failed') {
+        await prisma.withdrawal.update({
+          where: { id: withdrawal.id },
+          data: {
+            lastError: 'on_chain_transaction_failed',
+          },
+        });
+        return NextResponse.json(
+          { error: 'on_chain_transaction_failed' },
+          { status: 502 }
+        );
+      }
+
+      if (
+        chainTx.transaction_status !== 'mined' ||
+        !chainTx.transaction_hash?.trim()
+      ) {
+        return NextResponse.json(
+          { error: 'transaction_not_ready' },
+          { status: 502 }
+        );
+      }
+
+      await prisma.withdrawal.update({
+        where: { id: withdrawal.id },
+        data: {
+          txHash: chainTx.transaction_hash.trim(),
+        },
+      });
+
+      rowForEmail = await prisma.withdrawal.findUniqueOrThrow({
+        where: { id: withdrawal.id },
+      });
+    }
+
+    const emailResult = await sendWithdrawalComplianceEmail(rowForEmail, {
+      ...(complianceAttachments?.length
+        ? { attachments: complianceAttachments }
+        : {}),
+    });
 
     if (emailResult.sent) {
       await prisma.withdrawal.update({
@@ -96,7 +235,6 @@ export async function POST(req: NextRequest) {
     }
 
     if (emailResult.skipped) {
-      // Dev / misconfig: chain + DB are updated; compliance inbox not notified
       return NextResponse.json({
         ok: true,
         emailed: false,

@@ -13,6 +13,10 @@ import {
   SINPE_SESSION_PHONE,
   SINPE_SESSION_PROFILE,
 } from '@/constants/sinpe-session';
+import { TRANSACTION_PENDING_ERROR } from '@/lib/world-minikit-transaction';
+
+const CHAIN_POLL_INTERVAL_MS = 2000;
+const CHAIN_POLL_MAX_MS = 3 * 60 * 1000;
 import { InfoBox } from './ui/InfoBox';
 import { StepHeader } from './ui/StepHeader';
 import { StepProgress } from './ui/StepProgress';
@@ -57,20 +61,65 @@ export const PayStep = () => {
     setIsLoading(false);
   }, [router]);
 
-  const finalizeOnServer = useCallback(
+  const postCompleteWithdrawal = useCallback(
     async (referenceId: string, transactionId: string) => {
-      const res = await fetch('/api/complete-withdrawal', {
+      const idFrontDataUrl =
+        sessionStorage.getItem(SINPE_SESSION_ID_FRONT) ?? '';
+      const idBackDataUrl =
+        sessionStorage.getItem(SINPE_SESSION_ID_BACK) ?? '';
+      return fetch('/api/complete-withdrawal', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           referenceId,
           transactionId,
           txHash: null,
+          idFrontDataUrl,
+          idBackDataUrl,
         }),
       });
-      return res;
     },
     []
+  );
+
+  /** Calls complete-withdrawal until World reports `mined` (or error / timeout). */
+  const finalizeAfterChainConfirmation = useCallback(
+    async (referenceId: string, transactionId: string) => {
+      const started = Date.now();
+      for (;;) {
+        const res = await postCompleteWithdrawal(referenceId, transactionId);
+        if (res.ok) {
+          return res;
+        }
+        let payload: { error?: string } = {};
+        try {
+          payload = (await res.json()) as { error?: string };
+        } catch {
+          /* ignore */
+        }
+        if (
+          res.status === 409 &&
+          payload.error === TRANSACTION_PENDING_ERROR
+        ) {
+          if (Date.now() - started > CHAIN_POLL_MAX_MS) {
+            return new Response(
+              JSON.stringify({ error: 'confirmation_timeout' }),
+              {
+                status: 408,
+                headers: { 'Content-Type': 'application/json' },
+              }
+            );
+          }
+          await new Promise((r) => setTimeout(r, CHAIN_POLL_INTERVAL_MS));
+          continue;
+        }
+        return new Response(JSON.stringify(payload), {
+          status: res.status,
+          headers: { 'Content-Type': 'application/json' },
+        });
+      }
+    },
+    [postCompleteWithdrawal]
   );
 
   const handlePay = async () => {
@@ -105,16 +154,25 @@ export const PayStep = () => {
 
       if (result.finalPayload.status === 'success') {
         const p = result.finalPayload;
-        const completeRes = await finalizeOnServer(p.reference, p.transaction_id);
+        const completeRes = await finalizeAfterChainConfirmation(
+          p.reference,
+          p.transaction_id
+        );
         if (!completeRes.ok) {
           setPayProof({
             referenceId: p.reference,
             transactionId: p.transaction_id,
           });
           setButtonState('failed');
-          setError(
-            'La transferencia se completó, pero no pudimos registrar el retiro ni enviar el aviso. Tocá Reintentar o contactá soporte con la referencia.'
-          );
+          if (completeRes.status === 408) {
+            setError(
+              'La red tardó demasiado en confirmar. Tocá Reintentar para seguir esperando el aviso a Ridivi.'
+            );
+          } else {
+            setError(
+              'La transferencia se envió, pero no pudimos registrar el retiro ni enviar el aviso. Tocá Reintentar o contactá soporte con la referencia.'
+            );
+          }
           setTimeout(() => setButtonState(undefined), 4000);
           return;
         }
@@ -142,13 +200,17 @@ export const PayStep = () => {
     setError('');
     setButtonState('pending');
     try {
-      const completeRes = await finalizeOnServer(
+      const completeRes = await finalizeAfterChainConfirmation(
         payProof.referenceId,
         payProof.transactionId
       );
       if (!completeRes.ok) {
         setButtonState('failed');
-        setError('Seguimos sin poder enviar el aviso. Contactá soporte.');
+        setError(
+          completeRes.status === 408
+            ? 'Seguimos esperando confirmación en la cadena. Reintentá en unos segundos.'
+            : 'Seguimos sin poder completar el aviso. Contactá soporte.'
+        );
         setTimeout(() => setButtonState(undefined), 4000);
         return;
       }
@@ -229,7 +291,7 @@ export const PayStep = () => {
         <LiveFeedback
           label={{
             failed: 'Envío fallido',
-            pending: 'Esperando confirmación…',
+            pending: 'Confirmando en la cadena…',
             success: 'Retiro exitoso',
           }}
           state={buttonState}

@@ -42,35 +42,103 @@ export function withdrawalToComplianceInput(
   };
 }
 
-export function buildComplianceEmailSubject(referenceId: string): string {
-  return `[Ridivi withdraw] ${referenceId}`;
+export type ComplianceEmailSubjectInput = Pick<
+  WithdrawalComplianceEmailInput,
+  'referenceId' | 'txHash' | 'amountWld' | 'amountCrcEstimated'
+>;
+
+/**
+ * Inbox-friendly subject: WLD→CRC amounts + short World Chain hash for explorer match.
+ * Full hash stays in the body. When hash is missing, uses a shortened reference.
+ */
+export function buildComplianceEmailSubject(
+  input: ComplianceEmailSubjectInput
+): string {
+  const wld = formatWldForSubject(input.amountWld);
+  const crc = formatCrcForSubject(input.amountCrcEstimated);
+  const amounts = `${wld} WLD → ${crc} CRC est.`;
+
+  const shortHash = shortenTxHashForSubjectDisplay(input.txHash);
+  const chainPart = shortHash
+    ? `World Chain transaction hash ${shortHash}`
+    : `sin hash aún - ref ${shortenRefForSubject(input.referenceId)}`;
+
+  return `[Ridivi Withdraw · WLD a CRC] ${amounts} - ${chainPart}`;
+}
+
+function formatWldForSubject(raw: string): string {
+  const n = Number(String(raw).trim());
+  if (!Number.isFinite(n)) return String(raw).trim();
+  const s = n.toFixed(6).replace(/\.?0+$/, '');
+  return s === '' ? '0' : s;
+}
+
+function formatCrcForSubject(raw: string): string {
+  const n = Number(String(raw).trim());
+  if (!Number.isFinite(n)) return String(raw).trim();
+  return Math.round(n).toLocaleString('es-CR');
+}
+
+/** `0x` + first/last hex (ellipsis) for mobile inbox truncation. */
+function shortenTxHashForSubjectDisplay(
+  raw: string | null | undefined
+): string | null {
+  const full = normalizeTxHashForSubject(raw);
+  if (!full || full.length <= 18) return full;
+  return `${full.slice(0, 10)}…${full.slice(-6)}`;
+}
+
+function shortenRefForSubject(ref: string): string {
+  const t = ref.trim();
+  if (t.length <= 14) return t;
+  return `${t.slice(0, 8)}…${t.slice(-4)}`;
+}
+
+function normalizeTxHashForSubject(
+  raw: string | null | undefined
+): string | null {
+  const t = raw?.trim();
+  if (!t) return null;
+  const hex = t.startsWith('0x') || t.startsWith('0X') ? t.slice(2) : t;
+  if (!/^[a-fA-F0-9]+$/i.test(hex) || hex.length < 8) return null;
+  return `0x${hex.toLowerCase()}`;
 }
 
 /**
- * Body aligned with docs/INFRA_RECOMMENDATIONS.md + docs/WITHDRAWAL_STEPS.md (minimum fields + context).
+ * Plain-text body: Spanish intro + structured fields (aligned with infra docs).
  */
 export function buildComplianceEmailPlainText(
   input: WithdrawalComplianceEmailInput,
   timestampUtc: Date
 ): string {
   const ts = timestampUtc.toISOString();
-  const lines = [
-    `reference_id: ${input.referenceId}`,
-    `wallet_address: ${input.walletAddress}`,
-    `sinpe_phone: ${input.phoneNumber}`,
-    `account_number: ${input.accountNumber}`,
-    `legal_name: ${input.firstName} ${input.lastName}`.trim(),
-    `id_number: ${input.idNumber}`,
-    `amount_wld: ${input.amountWld}`,
-    `amount_crc_estimated_net: ${input.amountCrcEstimated}`,
-    `exchange_rate_crc_per_wld: ${input.exchangeRateCrcPerWld}`,
-    `commission_crc: ${input.commissionCrc}`,
-    `transaction_id: ${input.transactionId ?? '(pending)'}`,
-    `tx_hash: ${input.txHash ?? '(pending)'}`,
-    `timestamp_utc: ${ts}`,
-    `environment: ${appEnvironmentLabel()}`,
+  const intro = [
+    'Hola,',
     '',
-    'Internal record only — not an official compliance submission.',
-  ];
-  return lines.join('\n');
+    'Adjuntamos los datos del retiro en cadena y las imágenes del documento de identidad (frente y reverso) tal como fueron cargadas en la aplicación.',
+    '',
+    'A continuación el detalle estructurado:',
+    '',
+  ].join('\n');
+
+  const data = [
+    `referencia_retiro: ${input.referenceId}`,
+    `direccion_billetera: ${input.walletAddress}`,
+    `telefono_sinpe_movil: ${input.phoneNumber}`,
+    `cuenta_destino: ${input.accountNumber}`,
+    `nombre_legal: ${input.firstName} ${input.lastName}`.trim(),
+    `numero_identificacion: ${input.idNumber}`,
+    `monto_wld: ${input.amountWld}`,
+    `monto_crc_estimado_neto: ${input.amountCrcEstimated}`,
+    `tipo_cambio_crc_por_wld: ${input.exchangeRateCrcPerWld}`,
+    `comision_crc: ${input.commissionCrc}`,
+    `id_transaccion_proveedor: ${input.transactionId ?? '(pendiente)'}`,
+    `hash_transaccion: ${input.txHash ?? '(pendiente)'}`,
+    `marca_tiempo_utc: ${ts}`,
+    `entorno: ${appEnvironmentLabel()}`,
+    '',
+    'Registro interno de la operación; no es comprobante oficial ni envío de compliance regulatorio por sí solo.',
+  ].join('\n');
+
+  return `${intro}${data}`;
 }

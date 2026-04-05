@@ -1,3 +1,4 @@
+import type { Attachment } from 'resend';
 import { Resend } from 'resend';
 
 import type { Withdrawal } from '@prisma/client';
@@ -27,6 +28,8 @@ export type SendWithdrawalComplianceOptions = {
    * When true (default), append `email_events` for each attempt per INFRA_RECOMMENDATIONS.md.
    */
   persistAudit?: boolean;
+  /** ID photos (frente / reverso), e.g. from complete-withdrawal. */
+  attachments?: Attachment[];
 };
 
 async function createEmailEvent(data: {
@@ -85,10 +88,11 @@ export async function sendWithdrawalComplianceEmailFromInput(
   const from = options?.from ?? envFrom;
   const persistAudit = options?.persistAudit !== false;
   const withdrawalId = options?.withdrawalId ?? undefined;
+  const attachments = options?.attachments;
 
   const timestampUtc = new Date();
   const text = buildComplianceEmailPlainText(input, timestampUtc);
-  const subject = buildComplianceEmailSubject(input.referenceId);
+  const subject = buildComplianceEmailSubject(input);
 
   const recordSkipped = async (reason: string, detail?: string) => {
     if (!persistAudit) {
@@ -158,6 +162,7 @@ export async function sendWithdrawalComplianceEmailFromInput(
         to: [to],
         subject,
         text,
+        ...(attachments?.length ? { attachments } : {}),
       },
       { idempotencyKey: input.referenceId }
     );
