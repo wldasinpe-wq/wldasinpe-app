@@ -1,8 +1,10 @@
 import { auth } from '@/auth';
 import { Page } from '@/components/PageLayout';
+import { WithdrawCompletionNotice } from '@/components/WithdrawCompletionNotice';
 import { WldBalanceInline, WldBalancePill } from '@/components/WldBalanceDisplay';
 import { Button, TopBar } from '@worldcoin/mini-apps-ui-kit-react';
 import Link from 'next/link';
+import { Suspense } from 'react';
 import { EXCHANGE_RATES, FEES, formatCurrency } from '@/constants/exchange';
 
 export default async function Home() {
@@ -14,6 +16,10 @@ export default async function Home() {
         <TopBar endAdornment={<WldBalancePill />} />
       </Page.Header>
       <Page.Main className="flex flex-col items-center justify-center gap-8 px-6 py-12">
+        <Suspense fallback={null}>
+          <WithdrawCompletionNotice />
+        </Suspense>
+
         {/* Hero Section */}
         <div className="flex flex-col items-center gap-4 max-w-md text-center">
           <h1 className="text-3xl font-bold text-gray-900 tracking-tight">

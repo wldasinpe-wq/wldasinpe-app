@@ -21,6 +21,74 @@ import { InfoBox } from './ui/InfoBox';
 import { StepHeader } from './ui/StepHeader';
 import { StepProgress } from './ui/StepProgress';
 
+type FinalizeWithdrawalResult =
+  | { ok: true }
+  | { ok: false; status: number; error?: string };
+
+/** Maps `/api/complete-withdrawal` errors to Spanish copy (reference shown separately in UI). */
+function userMessageForCompleteWithdrawalFailure(
+  status: number,
+  errorCode?: string
+): string {
+  const code = errorCode?.trim() ?? '';
+  if (status === 408 || code === 'confirmation_timeout') {
+    return 'La red tardó demasiado en confirmar. Tocá Reintentar para seguir esperando el aviso a Ridivi.';
+  }
+  switch (code) {
+    case 'reference_mismatch':
+      return 'El pago no coincide con esta referencia de retiro. Si sigue pasando, escribinos a info@ridivi.com.';
+    case 'on_chain_transaction_failed':
+      return 'La transacción en cadena falló. Si ves un débito en World App, escribinos a info@ridivi.com con la referencia.';
+    case 'transaction_not_ready':
+      return 'La red aún no terminó de confirmar el pago. Tocá Reintentar en unos segundos.';
+    case 'transaction_not_found':
+      return 'No encontramos este pago en World todavía. Tocá Reintentar; si no cambia, escribinos a info@ridivi.com.';
+    case 'transaction_lookup_failed':
+      return 'No pudimos consultar el estado del pago con World. Reintentá en un momento o escribinos a info@ridivi.com.';
+    case 'invalid_withdrawal_status':
+      return 'Este retiro no se puede completar desde acá (estado inválido). Escribinos a info@ridivi.com con la referencia.';
+    case 'Withdrawal not found':
+      return 'No encontramos este retiro. Iniciá un retiro nuevo o escribinos a info@ridivi.com.';
+    case 'Forbidden':
+      return 'Esta sesión no coincide con la billetera del retiro. Cerrá sesión y volvé a entrar con World App.';
+    case 'Unauthorized':
+      return 'Sesión expirada. Volvé a iniciar sesión e intentá de nuevo.';
+    case 'server_misconfigured':
+    case 'Internal server error':
+      return 'Hubo un error en el servidor. Reintentá en unos minutos o escribinos a info@ridivi.com.';
+    default:
+      break;
+  }
+  if (code === 'Failed to send compliance email') {
+    return 'El pago se confirmó, pero no pudimos enviar el aviso. Tocá Reintentar o escribinos a info@ridivi.com con la referencia.';
+  }
+  if (
+    code.includes('idFrontDataUrl') ||
+    code.includes('ID image') ||
+    code.includes('Invalid or oversized')
+  ) {
+    return 'Faltan o no son válidas las fotos del documento. Volvé al paso de identificación y subilas de nuevo.';
+  }
+  if (code === 'referenceId and transactionId are required') {
+    return 'Faltan datos del pago. Volvé a firmar la transferencia en World App.';
+  }
+  if (status === 400 && code) {
+    return 'No pudimos validar el retiro. Volvé atrás o escribinos a info@ridivi.com.';
+  }
+  return 'La transferencia se envió, pero no pudimos registrar el retiro ni enviar el aviso. Tocá Reintentar o escribinos a info@ridivi.com con la referencia de abajo.';
+}
+
+function retryMessageForCompleteWithdrawalFailure(
+  status: number,
+  errorCode?: string
+): string {
+  const code = errorCode?.trim() ?? '';
+  if (status === 408 || code === 'confirmation_timeout') {
+    return 'Seguimos esperando confirmación en la cadena. Reintentá en unos segundos.';
+  }
+  return userMessageForCompleteWithdrawalFailure(status, errorCode);
+}
+
 function clearWithdrawalSession() {
   sessionStorage.removeItem(SINPE_SESSION_PHONE);
   sessionStorage.removeItem(SINPE_SESSION_PROFILE);
@@ -84,12 +152,15 @@ export const PayStep = () => {
 
   /** Calls complete-withdrawal until World reports `mined` (or error / timeout). */
   const finalizeAfterChainConfirmation = useCallback(
-    async (referenceId: string, transactionId: string) => {
+    async (
+      referenceId: string,
+      transactionId: string
+    ): Promise<FinalizeWithdrawalResult> => {
       const started = Date.now();
       for (;;) {
         const res = await postCompleteWithdrawal(referenceId, transactionId);
         if (res.ok) {
-          return res;
+          return { ok: true };
         }
         let payload: { error?: string } = {};
         try {
@@ -102,21 +173,20 @@ export const PayStep = () => {
           payload.error === TRANSACTION_PENDING_ERROR
         ) {
           if (Date.now() - started > CHAIN_POLL_MAX_MS) {
-            return new Response(
-              JSON.stringify({ error: 'confirmation_timeout' }),
-              {
-                status: 408,
-                headers: { 'Content-Type': 'application/json' },
-              }
-            );
+            return {
+              ok: false,
+              status: 408,
+              error: 'confirmation_timeout',
+            };
           }
           await new Promise((r) => setTimeout(r, CHAIN_POLL_INTERVAL_MS));
           continue;
         }
-        return new Response(JSON.stringify(payload), {
+        return {
+          ok: false,
           status: res.status,
-          headers: { 'Content-Type': 'application/json' },
-        });
+          error: payload.error,
+        };
       }
     },
     [postCompleteWithdrawal]
@@ -164,15 +234,12 @@ export const PayStep = () => {
             transactionId: p.transaction_id,
           });
           setButtonState('failed');
-          if (completeRes.status === 408) {
-            setError(
-              'La red tardó demasiado en confirmar. Tocá Reintentar para seguir esperando el aviso a Ridivi.'
-            );
-          } else {
-            setError(
-              'La transferencia se envió, pero no pudimos registrar el retiro ni enviar el aviso. Tocá Reintentar o contactá soporte con la referencia.'
-            );
-          }
+          setError(
+            userMessageForCompleteWithdrawalFailure(
+              completeRes.status,
+              completeRes.error
+            )
+          );
           setTimeout(() => setButtonState(undefined), 4000);
           return;
         }
@@ -180,7 +247,7 @@ export const PayStep = () => {
         setButtonState('success');
         clearWithdrawalSession();
         setTimeout(() => {
-          router.push('/home');
+          router.push('/home?retiro=completado');
         }, 2000);
       } else {
         setButtonState('failed');
@@ -207,9 +274,10 @@ export const PayStep = () => {
       if (!completeRes.ok) {
         setButtonState('failed');
         setError(
-          completeRes.status === 408
-            ? 'Seguimos esperando confirmación en la cadena. Reintentá en unos segundos.'
-            : 'Seguimos sin poder completar el aviso. Contactá soporte.'
+          retryMessageForCompleteWithdrawalFailure(
+            completeRes.status,
+            completeRes.error
+          )
         );
         setTimeout(() => setButtonState(undefined), 4000);
         return;
@@ -218,7 +286,7 @@ export const PayStep = () => {
       setPayProof(null);
       clearWithdrawalSession();
       setTimeout(() => {
-        router.push('/home');
+        router.push('/home?retiro=completado');
       }, 2000);
     } catch {
       setButtonState('failed');

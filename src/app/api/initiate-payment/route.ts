@@ -17,7 +17,10 @@ export async function POST(req: NextRequest) {
   const session = await auth();
 
   if (!session?.user?.walletAddress) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    return NextResponse.json(
+      { error: 'No autorizado. Volvé a iniciar sesión.' },
+      { status: 401 }
+    );
   }
 
   const walletAddress = session.user.walletAddress;
@@ -36,7 +39,7 @@ export async function POST(req: NextRequest) {
 
     if (!isNonEmptyString(phoneNumber)) {
       return NextResponse.json(
-        { error: 'Phone number is required' },
+        { error: 'El número de teléfono es obligatorio.' },
         { status: 400 }
       );
     }
@@ -48,7 +51,9 @@ export async function POST(req: NextRequest) {
 
     if (!Number.isFinite(amount) || amount < LIMITS.MIN_WLD) {
       return NextResponse.json(
-        { error: `Amount must be at least ${LIMITS.MIN_WLD} WLD` },
+        {
+          error: `El monto mínimo es ${LIMITS.MIN_WLD} WLD.`,
+        },
         { status: 400 }
       );
     }
@@ -62,7 +67,10 @@ export async function POST(req: NextRequest) {
       !isNonEmptyString(accountNumber)
     ) {
       return NextResponse.json(
-        { error: 'Identity and account fields are required' },
+        {
+          error:
+            'Faltan datos del destinatario. Volvé al inicio del retiro y verificá el número SINPE.',
+        },
         { status: 400 }
       );
     }
@@ -96,7 +104,7 @@ export async function POST(req: NextRequest) {
   } catch (error) {
     console.error('Error initiating payment:', error);
     return NextResponse.json(
-      { error: 'Internal server error' },
+      { error: 'Error interno. Intentá de nuevo más tarde.' },
       { status: 500 }
     );
   }

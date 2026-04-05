@@ -124,13 +124,41 @@ export const InitiateWithdrawalStep = () => {
         body: JSON.stringify(initiateBody),
       });
 
+      const data = (await res.json().catch(() => ({}))) as {
+        id?: string;
+        error?: string;
+      };
+
       if (!res.ok) {
-        throw new Error('initiate failed');
+        setButtonState('failed');
+        if (res.status === 401) {
+          setError('Sesión expirada. Volvé a iniciar sesión e intentá de nuevo.');
+        } else if (res.status === 400 && data.error) {
+          setError(
+            data.error.length > 160
+              ? `${data.error.slice(0, 157)}…`
+              : data.error
+          );
+        } else if (res.status >= 500) {
+          setError(
+            data.error?.trim() ||
+              'El servicio tuvo un error. Intentá de nuevo en unos minutos o escribinos a info@ridivi.com.'
+          );
+        } else {
+          setError(
+            data.error?.trim() ||
+              'No se pudo crear el retiro. Intentá de nuevo o escribinos a info@ridivi.com.'
+          );
+        }
+        setTimeout(() => setButtonState(undefined), 3000);
+        return;
       }
 
-      const data = (await res.json()) as { id?: string };
       if (!data.id) {
-        throw new Error('missing id');
+        setButtonState('failed');
+        setError('Respuesta inválida del servidor. Intentá de nuevo.');
+        setTimeout(() => setButtonState(undefined), 3000);
+        return;
       }
 
       sessionStorage.setItem(SINPE_SESSION_PAY_REFERENCE, data.id);
@@ -140,7 +168,7 @@ export const InitiateWithdrawalStep = () => {
       }, 400);
     } catch {
       setButtonState('failed');
-      setError('No se pudo crear el retiro. Intentá de nuevo.');
+      setError('Error de red. Verificá tu conexión e intentá de nuevo.');
       setTimeout(() => setButtonState(undefined), 3000);
     }
   };

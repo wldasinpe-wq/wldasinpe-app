@@ -40,6 +40,7 @@ export const AmountStep = () => {
     wei: balanceWei,
     loadState: balanceStatus,
     errorKind: balanceErrorKind,
+    refetch: refetchBalance,
   } = useWldBalance();
   const router = useRouter();
   const [phoneNumber, setPhoneNumber] = useState<string | null>(null);
@@ -266,7 +267,22 @@ export const AmountStep = () => {
                   volvé a entrar con World App (Wallet Auth).
                 </>
               ) : (
-                <>No pudimos consultar el saldo en World Chain. Reintentá.</>
+                <>
+                  No pudimos consultar el saldo en World Chain.
+                  {balanceStatus === 'error' &&
+                  sessionStatus === 'authenticated' &&
+                  balanceErrorKind === 'rpc' ? (
+                    <span className="mt-2 block">
+                      <button
+                        type="button"
+                        onClick={() => refetchBalance()}
+                        className="text-xs font-semibold text-blue-600 underline decoration-blue-300 underline-offset-2 active:opacity-70"
+                      >
+                        Reintentar consulta de saldo
+                      </button>
+                    </span>
+                  ) : null}
+                </>
               )}
             </p>
           </div>
