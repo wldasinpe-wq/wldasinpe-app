@@ -19,6 +19,7 @@ import {
   hapticPrimary,
   hapticSuccess,
 } from '@/lib/haptics';
+import { splitLegalName } from '@/lib/split-legal-name';
 import {
   TRANSACTION_NOT_READY_ERROR,
   TRANSACTION_PENDING_ERROR,
@@ -81,6 +82,9 @@ function userMessageForCompleteWithdrawalFailure(
   }
   if (code === 'referenceId and transactionId are required') {
     return 'Faltan datos del pago. Volvé a firmar la transferencia en World App.';
+  }
+  if (code === 'draft_withdrawal_required') {
+    return 'Faltan datos del retiro. Volvé al resumen y confirmá de nuevo.';
   }
   if (status === 400 && code) {
     return 'No pudimos validar el retiro. Volvé atrás o escribinos a info@ridivi.com.';
@@ -146,6 +150,36 @@ export const PayStep = () => {
         sessionStorage.getItem(SINPE_SESSION_ID_FRONT) ?? '';
       const idBackDataUrl =
         sessionStorage.getItem(SINPE_SESSION_ID_BACK) ?? '';
+      const phoneNumber = sessionStorage.getItem(SINPE_SESSION_PHONE) ?? '';
+      const amountRaw = sessionStorage.getItem(SINPE_SESSION_AMOUNT_WLD) ?? '';
+      const contactEmail =
+        sessionStorage.getItem(SINPE_SESSION_CONTACT_EMAIL) ?? '';
+      const profileRaw = sessionStorage.getItem(SINPE_SESSION_PROFILE);
+
+      let firstName = '';
+      let lastName = '';
+      let idNumber = '';
+      let accountNumber = '';
+
+      try {
+        const profile = profileRaw
+          ? (JSON.parse(profileRaw) as {
+              nombreCliente?: string;
+              identificacion?: string;
+              cuentaInterna?: string;
+            })
+          : null;
+        if (profile?.nombreCliente) {
+          const split = splitLegalName(profile.nombreCliente);
+          firstName = split.firstName;
+          lastName = split.lastName;
+        }
+        idNumber = profile?.identificacion ?? '';
+        accountNumber = profile?.cuentaInterna ?? '';
+      } catch {
+        /* ignore */
+      }
+
       return fetch('/api/complete-withdrawal', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -155,6 +189,15 @@ export const PayStep = () => {
           txHash: null,
           idFrontDataUrl,
           idBackDataUrl,
+          phoneNumber,
+          amountWLD: parseFloat(amountRaw),
+          firstName,
+          lastName,
+          idNumber,
+          accountNumber,
+          contactEmail: contactEmail.trim() || null,
+          idFrontSubmitted: Boolean(idFrontDataUrl),
+          idBackSubmitted: Boolean(idBackDataUrl),
         }),
       });
     },

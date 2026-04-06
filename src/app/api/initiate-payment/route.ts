@@ -1,18 +1,18 @@
-import { Prisma } from '@prisma/client';
 import { NextRequest, NextResponse } from 'next/server';
 
 import { auth } from '@/auth';
-import {
-  calculateConversion,
-  EXCHANGE_RATES,
-  LIMITS,
-} from '@/constants/exchange';
-import { prisma } from '@/lib/prisma';
+import { LIMITS } from '@/constants/exchange';
 
 function isNonEmptyString(v: unknown): v is string {
   return typeof v === 'string' && v.trim().length > 0;
 }
 
+/**
+ * Validates withdrawal intent and returns a reference id for MiniKit `pay()`.
+ * Does **not** persist to the DB — the first write happens in `complete-withdrawal`
+ * after the on-chain payment is confirmed (avoids "Esperando el pago" if the user
+ * leaves step 7 without paying).
+ */
 export async function POST(req: NextRequest) {
   const session = await auth();
 
@@ -23,25 +23,14 @@ export async function POST(req: NextRequest) {
     );
   }
 
-  const walletAddress = session.user.walletAddress;
-
   try {
     const body = (await req.json()) as Record<string, unknown>;
 
     const phoneNumber = body.phoneNumber;
     const amountWLD = body.amountWLD;
     const firstName = body.firstName;
-    const lastNameRaw = body.lastName;
     const idNumber = body.idNumber;
     const accountNumber = body.accountNumber;
-    const idFrontSubmitted = Boolean(body.idFrontSubmitted);
-    const idBackSubmitted = Boolean(body.idBackSubmitted);
-    const contactEmailRaw = body.contactEmail;
-    const contactEmail =
-      typeof contactEmailRaw === 'string' && contactEmailRaw.trim()
-        ? contactEmailRaw.trim()
-        : null;
-
     if (!isNonEmptyString(phoneNumber)) {
       return NextResponse.json(
         { error: 'El número de teléfono es obligatorio.' },
@@ -63,9 +52,6 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const lastName =
-      typeof lastNameRaw === 'string' ? lastNameRaw.trim() : '';
-
     if (
       !isNonEmptyString(firstName) ||
       !isNonEmptyString(idNumber) ||
@@ -81,30 +67,6 @@ export async function POST(req: NextRequest) {
     }
 
     const referenceId = crypto.randomUUID().replace(/-/g, '');
-    const conversion = calculateConversion(amount);
-    const idSubmittedAt =
-      idFrontSubmitted && idBackSubmitted ? new Date() : null;
-
-    await prisma.withdrawal.create({
-      data: {
-        referenceId,
-        walletAddress,
-        firstName: firstName.trim(),
-        lastName,
-        idNumber: idNumber.trim(),
-        phoneNumber: phoneNumber.trim(),
-        accountNumber: accountNumber.trim(),
-        amountWld: new Prisma.Decimal(amount),
-        amountCrc: new Prisma.Decimal(conversion.netCrc),
-        exchangeRate: new Prisma.Decimal(EXCHANGE_RATES.WLD_TO_CRC),
-        commissionCrc: new Prisma.Decimal(conversion.fee),
-        idFrontSubmitted,
-        idBackSubmitted,
-        idSubmittedAt,
-        contactEmail,
-        status: 'PENDING_PAYMENT',
-      },
-    });
 
     return NextResponse.json({ id: referenceId });
   } catch (error) {
