@@ -135,7 +135,7 @@ export const InitiateWithdrawalStep = () => {
     } catch {
       hapticError();
       setButtonState('failed');
-      setError('Faltan datos del destinatario. Volvé al inicio del retiro.');
+      setError('Faltan datos del destinatario. Volvé al retiro.');
       setTimeout(() => setButtonState(undefined), 3000);
       return;
     }

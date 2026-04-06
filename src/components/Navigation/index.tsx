@@ -36,7 +36,7 @@ export const Navigation = () => {
 
   return (
     <Tabs value={value} onValueChange={onValueChange}>
-      <TabItem value="home" icon={<Home />} label="Inicio" />
+      <TabItem value="home" icon={<Home />} label="Retiros" />
       <TabItem value="wallet" icon={<Bank />} label="Billetera" />
       <TabItem value="profile" icon={<User />} label="Perfil" />
     </Tabs>

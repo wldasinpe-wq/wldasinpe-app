@@ -74,7 +74,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json(
         {
           error:
-            'Faltan datos del destinatario. Volvé al inicio del retiro y verificá el número SINPE.',
+            'Faltan datos del destinatario. Volvé al retiro y verificá el número SINPE.',
         },
         { status: 400 }
       );
