@@ -5,6 +5,7 @@ import { auth } from '@/auth';
 import { complianceAttachmentsFromDataUrls } from '@/lib/email/compliance-attachments';
 import { sendWithdrawalComplianceEmail } from '@/lib/email/send-withdrawal-compliance';
 import { prisma } from '@/lib/prisma';
+import { getWorldchainTxOutcome } from '@/lib/wld-onchain';
 import {
   TRANSACTION_PENDING_ERROR,
   fetchMinikitPaymentTransaction,
@@ -183,43 +184,64 @@ export async function POST(req: NextRequest) {
         );
       }
 
-      if (chainTx.transaction_status === 'pending') {
+      const apiHash = chainTx.transaction_hash?.trim() ?? '';
+      let confirmedHash: string | null = null;
+
+      if (chainTx.transaction_status === 'mined' && apiHash) {
+        confirmedHash = apiHash;
+      } else if (apiHash) {
+        const outcome = await getWorldchainTxOutcome(apiHash);
+        if (outcome === 'success') {
+          confirmedHash = apiHash;
+        } else if (outcome === 'reverted') {
+          await prisma.withdrawal.update({
+            where: { id: withdrawal.id },
+            data: { lastError: 'on_chain_transaction_failed' },
+          });
+          return NextResponse.json(
+            { error: 'on_chain_transaction_failed' },
+            { status: 502 }
+          );
+        }
+      }
+
+      if (!confirmedHash) {
+        if (chainTx.transaction_status === 'failed') {
+          await prisma.withdrawal.update({
+            where: { id: withdrawal.id },
+            data: {
+              lastError: 'on_chain_transaction_failed',
+            },
+          });
+          return NextResponse.json(
+            { error: 'on_chain_transaction_failed' },
+            { status: 502 }
+          );
+        }
+
+        if (chainTx.transaction_status === 'pending') {
+          return NextResponse.json(
+            {
+              error: TRANSACTION_PENDING_ERROR,
+              transaction_status: 'pending',
+            },
+            { status: 409 }
+          );
+        }
+
         return NextResponse.json(
           {
-            error: TRANSACTION_PENDING_ERROR,
-            transaction_status: 'pending',
+            error: 'transaction_not_ready',
+            transaction_status: chainTx.transaction_status,
           },
           { status: 409 }
-        );
-      }
-
-      if (chainTx.transaction_status === 'failed') {
-        await prisma.withdrawal.update({
-          where: { id: withdrawal.id },
-          data: {
-            lastError: 'on_chain_transaction_failed',
-          },
-        });
-        return NextResponse.json(
-          { error: 'on_chain_transaction_failed' },
-          { status: 502 }
-        );
-      }
-
-      if (
-        chainTx.transaction_status !== 'mined' ||
-        !chainTx.transaction_hash?.trim()
-      ) {
-        return NextResponse.json(
-          { error: 'transaction_not_ready' },
-          { status: 502 }
         );
       }
 
       await prisma.withdrawal.update({
         where: { id: withdrawal.id },
         data: {
-          txHash: chainTx.transaction_hash.trim(),
+          txHash: confirmedHash,
         },
       });
 

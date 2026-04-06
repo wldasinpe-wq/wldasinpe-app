@@ -79,3 +79,29 @@ export function wldWeiToKeypadAmount(wei: bigint): string {
 export function wldWeiToNumber(wei: bigint): number {
   return Number(formatUnits(wei, DECIMALS));
 }
+
+const TX_HASH_RE = /^0x[a-fA-F0-9]{64}$/;
+
+/**
+ * When World’s Get Transaction lags behind the explorer, a receipt check is authoritative.
+ */
+export async function getWorldchainTxOutcome(
+  txHash: string,
+): Promise<'success' | 'reverted' | 'pending' | 'invalid'> {
+  const trimmed = txHash.trim();
+  if (!TX_HASH_RE.test(trimmed)) return 'invalid';
+
+  const client = createPublicClient({
+    chain: worldchain,
+    transport: worldchainReadTransport(),
+  });
+
+  try {
+    const receipt = await client.getTransactionReceipt({
+      hash: trimmed as `0x${string}`,
+    });
+    return receipt.status === 'success' ? 'success' : 'reverted';
+  } catch {
+    return 'pending';
+  }
+}

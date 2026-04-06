@@ -18,10 +18,14 @@ import {
   hapticPrimary,
   hapticSuccess,
 } from '@/lib/haptics';
-import { TRANSACTION_PENDING_ERROR } from '@/lib/world-minikit-transaction';
+import {
+  TRANSACTION_NOT_READY_ERROR,
+  TRANSACTION_PENDING_ERROR,
+} from '@/lib/world-minikit-transaction';
 
 const CHAIN_POLL_INTERVAL_MS = 2000;
-const CHAIN_POLL_MAX_MS = 3 * 60 * 1000;
+/** World docs: on-chain confirmation can take a few minutes. */
+const CHAIN_POLL_MAX_MS = 5 * 60 * 1000;
 import { InfoBox } from './ui/InfoBox';
 import { StepHeader } from './ui/StepHeader';
 import { StepProgress } from './ui/StepProgress';
@@ -173,10 +177,14 @@ export const PayStep = () => {
         } catch {
           /* ignore */
         }
-        if (
-          res.status === 409 &&
-          payload.error === TRANSACTION_PENDING_ERROR
-        ) {
+        const pollAgain =
+          (res.status === 409 &&
+            (payload.error === TRANSACTION_PENDING_ERROR ||
+              payload.error === TRANSACTION_NOT_READY_ERROR)) ||
+          (res.status === 502 &&
+            payload.error === TRANSACTION_NOT_READY_ERROR);
+
+        if (pollAgain) {
           if (Date.now() - started > CHAIN_POLL_MAX_MS) {
             return {
               ok: false,
