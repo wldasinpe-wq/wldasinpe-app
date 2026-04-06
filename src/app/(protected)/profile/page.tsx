@@ -1,41 +1,17 @@
 'use client';
 
 import { Page } from '@/components/PageLayout';
+import {
+  WithdrawalHistoryItem,
+  type ProfileWithdrawalRow,
+} from '@/components/WithdrawalHistoryItem';
 import { WldBalancePill } from '@/components/WldBalanceDisplay';
-import { formatCurrency } from '@/constants/exchange';
 import { MiniKit } from '@worldcoin/minikit-js';
 import { Button, TopBar } from '@worldcoin/mini-apps-ui-kit-react';
 import { useIsUserVerified } from '@worldcoin/minikit-react';
-import type { WithdrawalStatus } from '@prisma/client';
 import { useSession } from 'next-auth/react';
 import { hapticPrimary } from '@/lib/haptics';
 import { useCallback, useEffect, useMemo, useState } from 'react';
-
-type WithdrawalRow = {
-  id: string;
-  referenceId: string;
-  status: WithdrawalStatus;
-  amountWld: string;
-  amountCrc: string;
-  createdAt: string;
-  transactionId: string | null;
-  txHash: string | null;
-};
-
-function withdrawalStatusEs(status: WithdrawalStatus): string {
-  switch (status) {
-    case 'PENDING_PAYMENT':
-      return 'Pago pendiente';
-    case 'SUBMITTED':
-      return 'Enviado';
-    case 'EMAILED':
-      return 'Correo enviado';
-    case 'FAILED':
-      return 'Fallido';
-    default:
-      return status;
-  }
-}
 
 function shortenAddress(addr: string): string {
   if (addr.length < 12) return addr;
@@ -54,7 +30,9 @@ function ProfileAuthenticated({
   const { isUserVerified, isLoading: verifiedLoading } =
     useIsUserVerified(address);
 
-  const [withdrawals, setWithdrawals] = useState<WithdrawalRow[] | null>(null);
+  const [withdrawals, setWithdrawals] = useState<ProfileWithdrawalRow[] | null>(
+    null,
+  );
   const [withdrawalsError, setWithdrawalsError] = useState<string | null>(null);
 
   useEffect(() => {
@@ -66,7 +44,7 @@ function ProfileAuthenticated({
           cache: 'no-store',
         });
         const data = (await res.json()) as {
-          withdrawals?: WithdrawalRow[];
+          withdrawals?: ProfileWithdrawalRow[];
           error?: string;
         };
         if (cancelled) return;
@@ -160,6 +138,25 @@ function ProfileAuthenticated({
           <p className="text-xs font-medium text-gray-500 uppercase tracking-wide">
             Tus retiros en esta app
           </p>
+          <p className="text-xs text-gray-500 leading-relaxed">
+            Información de referencia para consultas. Verificá en{' '}
+            <a
+              href="https://worldscan.org/"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="font-medium text-blue-700 underline decoration-blue-700/40 underline-offset-2 hover:text-blue-800"
+            >
+              worldscan.org
+            </a>{' '}
+            o escribí a{' '}
+            <a
+              href="mailto:info@ridivi.com"
+              className="font-medium text-blue-700 underline decoration-blue-700/40 underline-offset-2 hover:text-blue-800"
+            >
+              info@ridivi.com
+            </a>{' '}
+            con los datos que copiés de cada retiro.
+          </p>
           {withdrawals === null ? (
             <p className="text-sm text-gray-600">Cargando…</p>
           ) : withdrawalsError ? (
@@ -169,28 +166,13 @@ function ProfileAuthenticated({
               Todavía no tenés retiros registrados con esta billetera.
             </p>
           ) : (
-            <ul className="space-y-4">
+            <ul className="space-y-3">
               {withdrawals.map((w) => (
-                <li key={w.id} className="text-sm">
-                  <div className="flex justify-between gap-2">
-                    <span className="text-gray-500">
-                      {new Date(w.createdAt).toLocaleString('es-CR', {
-                        dateStyle: 'short',
-                        timeStyle: 'short',
-                      })}
-                    </span>
-                    <span className="font-medium text-gray-800 shrink-0">
-                      {withdrawalStatusEs(w.status)}
-                    </span>
-                  </div>
-                  <p className="mt-1 text-gray-900">
-                    {formatCurrency.WLD(Number(w.amountWld))} WLD →{' '}
-                    {formatCurrency.CRC(Number(w.amountCrc))}
-                  </p>
-                  <p className="text-xs text-gray-500 mt-0.5 font-mono truncate">
-                    Ref. {w.referenceId}
-                  </p>
-                </li>
+                <WithdrawalHistoryItem
+                  key={w.id}
+                  w={w}
+                  walletAddress={address}
+                />
               ))}
             </ul>
           )}

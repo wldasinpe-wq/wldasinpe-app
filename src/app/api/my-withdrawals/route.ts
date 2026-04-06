@@ -1,5 +1,6 @@
 import { auth } from '@/auth';
 import { prisma } from '@/lib/prisma';
+import { withdrawalDisplayPhase } from '@/lib/withdrawal-display';
 import type { Session } from 'next-auth';
 import { NextResponse } from 'next/server';
 
@@ -35,9 +36,12 @@ export async function GET() {
       status: true,
       amountWld: true,
       amountCrc: true,
+      exchangeRate: true,
+      commissionCrc: true,
       createdAt: true,
       transactionId: true,
       txHash: true,
+      lastError: true,
     },
   });
 
@@ -46,8 +50,15 @@ export async function GET() {
       id: w.id,
       referenceId: w.referenceId,
       status: w.status,
+      displayPhase: withdrawalDisplayPhase({
+        status: w.status,
+        txHash: w.txHash,
+        lastError: w.lastError,
+      }),
       amountWld: w.amountWld.toString(),
       amountCrc: w.amountCrc.toString(),
+      exchangeRate: w.exchangeRate.toString(),
+      commissionCrc: w.commissionCrc.toString(),
       createdAt: w.createdAt.toISOString(),
       transactionId: w.transactionId,
       txHash: w.txHash,

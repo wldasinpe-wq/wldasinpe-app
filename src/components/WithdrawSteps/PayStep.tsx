@@ -7,6 +7,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { formatCurrency } from '@/constants/exchange';
 import {
   SINPE_SESSION_AMOUNT_WLD,
+  SINPE_SESSION_CONTACT_EMAIL,
   SINPE_SESSION_ID_BACK,
   SINPE_SESSION_ID_FRONT,
   SINPE_SESSION_PAY_REFERENCE,
@@ -34,7 +35,7 @@ type FinalizeWithdrawalResult =
   | { ok: true }
   | { ok: false; status: number; error?: string };
 
-/** Maps `/api/complete-withdrawal` errors to Spanish copy (reference shown separately in UI). */
+/** Maps `/api/complete-withdrawal` errors to Spanish copy (no internal ids shown to users). */
 function userMessageForCompleteWithdrawalFailure(
   status: number,
   errorCode?: string
@@ -45,9 +46,9 @@ function userMessageForCompleteWithdrawalFailure(
   }
   switch (code) {
     case 'reference_mismatch':
-      return 'El pago no coincide con esta referencia de retiro. Si sigue pasando, escribinos a info@ridivi.com.';
+      return 'El pago no coincide con este retiro. Si sigue pasando, escribinos a info@ridivi.com.';
     case 'on_chain_transaction_failed':
-      return 'La transacción en cadena falló. Si ves un débito en World App, escribinos a info@ridivi.com con la referencia.';
+      return 'La transacción en cadena falló. Si ves un débito en World App, escribinos a info@ridivi.com con el detalle que muestre la app.';
     case 'transaction_not_ready':
       return 'La red aún no terminó de confirmar el pago. Tocá Reintentar en unos segundos.';
     case 'transaction_not_found':
@@ -55,7 +56,7 @@ function userMessageForCompleteWithdrawalFailure(
     case 'transaction_lookup_failed':
       return 'No pudimos consultar el estado del pago con World. Reintentá en un momento o escribinos a info@ridivi.com.';
     case 'invalid_withdrawal_status':
-      return 'Este retiro no se puede completar desde acá (estado inválido). Escribinos a info@ridivi.com con la referencia.';
+      return 'Este retiro no se puede completar desde acá (estado inválido). Escribinos a info@ridivi.com.';
     case 'Withdrawal not found':
       return 'No encontramos este retiro. Iniciá un retiro nuevo o escribinos a info@ridivi.com.';
     case 'Forbidden':
@@ -69,7 +70,7 @@ function userMessageForCompleteWithdrawalFailure(
       break;
   }
   if (code === 'Failed to send compliance email') {
-    return 'El pago se confirmó, pero no pudimos enviar el aviso. Tocá Reintentar o escribinos a info@ridivi.com con la referencia.';
+    return 'El pago se confirmó, pero no pudimos enviar el aviso. Tocá Reintentar o escribinos a info@ridivi.com.';
   }
   if (
     code.includes('idFrontDataUrl') ||
@@ -84,7 +85,7 @@ function userMessageForCompleteWithdrawalFailure(
   if (status === 400 && code) {
     return 'No pudimos validar el retiro. Volvé atrás o escribinos a info@ridivi.com.';
   }
-  return 'La transferencia se envió, pero no pudimos registrar el retiro ni enviar el aviso. Tocá Reintentar o escribinos a info@ridivi.com con la referencia de abajo.';
+  return 'La transferencia se envió, pero no pudimos registrar el retiro ni enviar el aviso. Tocá Reintentar o escribinos a info@ridivi.com.';
 }
 
 function retryMessageForCompleteWithdrawalFailure(
@@ -101,6 +102,7 @@ function retryMessageForCompleteWithdrawalFailure(
 function clearWithdrawalSession() {
   sessionStorage.removeItem(SINPE_SESSION_PHONE);
   sessionStorage.removeItem(SINPE_SESSION_PROFILE);
+  sessionStorage.removeItem(SINPE_SESSION_CONTACT_EMAIL);
   sessionStorage.removeItem(SINPE_SESSION_ID_FRONT);
   sessionStorage.removeItem(SINPE_SESSION_ID_BACK);
   sessionStorage.removeItem(SINPE_SESSION_AMOUNT_WLD);
@@ -334,24 +336,25 @@ export const PayStep = () => {
 
       <StepHeader
         title="Enviar WLD"
-        description="Confirmá la transferencia en World App para completar el retiro"
+        description="Solo falta autorizar el débito en World App. El colones estimado lo viste en el resumen."
         className="gap-4"
       />
 
       <div
-        className="space-y-4 border border-gray-900 p-6"
+        className="space-y-3 border border-gray-900 p-6"
         style={{ background: 'var(--white-ridivi)' }}
       >
         <div>
-          <div className="mb-1 text-xs text-gray-500">Monto a enviar</div>
+          <div className="mb-1 text-xs text-gray-500">Debitarás</div>
           <div className="text-2xl font-semibold tabular-nums text-gray-900">
             {formatCurrency.WLD(amountNum)}
           </div>
         </div>
-        <div>
-          <div className="mb-1 text-xs text-gray-500">Destino SINPE</div>
-          <div className="text-lg font-medium text-gray-900">{phoneNumber}</div>
-        </div>
+        <p className="text-xs leading-relaxed text-gray-500">
+          Va a la billetera de Ridivi en World Chain para completar tu retiro
+          SINPE. El hash de la transacción queda en World App cuando se
+          confirme.
+        </p>
       </div>
 
       {error ? (
@@ -361,9 +364,10 @@ export const PayStep = () => {
       ) : null}
 
       {payProof ? (
-        <div className="px-2 text-center">
-          <p className="mb-2 font-mono text-xs text-gray-600">
-            Ref: {payProof.referenceId}
+        <div className="space-y-2 px-2 text-center">
+          <p className="text-xs leading-relaxed text-gray-600">
+            Si ya firmaste el envío en World App, podés reintentar para
+            registrar el retiro y el aviso a Ridivi.
           </p>
           <Button
             type="button"
@@ -402,10 +406,11 @@ export const PayStep = () => {
 
       <InfoBox>
         <div className="space-y-2 text-sm text-gray-700">
-          <p className="font-medium text-gray-900">Seguridad</p>
+          <p className="font-medium text-gray-900">Importante</p>
           <p>
-            Solo se debita el monto indicado. La referencia vincula tu retiro
-            con el pago en cadena para el proveedor.
+            Revisá el monto en el modal de World App antes de confirmar. Para
+            soporte, Ridivi usa el comprobante o el hash que veas en la app
+            cuando la red confirme — no hace falta ningún otro código de acá.
           </p>
         </div>
       </InfoBox>

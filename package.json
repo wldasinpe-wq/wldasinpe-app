@@ -19,7 +19,8 @@
     "db:migrate:dev": "bash scripts/prisma-with-env.sh migrate dev",
     "db:migrate:local": "pnpm run db:migrate",
     "test:db-withdrawal": "tsx --env-file=.env.local scripts/test-withdrawal-db.ts",
-    "test:email-compliance": "tsx --env-file=.env.local scripts/test-email-compliance.ts"
+    "test:email-compliance": "tsx --env-file=.env.local scripts/test-email-compliance.ts",
+    "backfill:tx-hash": "tsx --env-file=.env.local scripts/backfill-withdrawal-tx-hash.ts"
   },
   "dependencies": {
     "@prisma/client": "^6.19.0",
@@ -28,6 +29,7 @@
     "@worldcoin/minikit-react": "latest",
     "clsx": "^2.1.1",
     "iconoir-react": "^7.11.0",
+    "lucide-react": "^1.7.0",
     "next": "^15.2.8",
     "next-auth": "^5.0.0-beta.25",
     "react": "^19.0.3",

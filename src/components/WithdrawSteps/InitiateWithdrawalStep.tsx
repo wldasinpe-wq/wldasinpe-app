@@ -4,7 +4,7 @@ import { Button, LiveFeedback } from '@worldcoin/mini-apps-ui-kit-react';
 import { useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
 import {
-  EXCHANGE_RATES,
+  calculateConversion,
   LIMITS,
   formatCurrency,
 } from '@/constants/exchange';
@@ -31,6 +31,7 @@ export const InitiateWithdrawalStep = () => {
   const router = useRouter();
   const [phoneNumber, setPhoneNumber] = useState('');
   const [recipientName, setRecipientName] = useState('Destinatario SINPE');
+  const [contactEmail, setContactEmail] = useState('');
   const [amountWldStr, setAmountWldStr] = useState('');
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState('');
@@ -46,13 +47,13 @@ export const InitiateWithdrawalStep = () => {
     const idFront = sessionStorage.getItem(SINPE_SESSION_ID_FRONT);
     const idBack = sessionStorage.getItem(SINPE_SESSION_ID_BACK);
     const amountRaw = sessionStorage.getItem(SINPE_SESSION_AMOUNT_WLD);
-    const contactEmail = sessionStorage.getItem(SINPE_SESSION_CONTACT_EMAIL);
+    const storedEmail = sessionStorage.getItem(SINPE_SESSION_CONTACT_EMAIL);
 
     if (!phone || !profileRaw) {
       router.replace('/withdraw/phone');
       return;
     }
-    if (!contactEmail?.trim()) {
+    if (!storedEmail?.trim()) {
       router.replace('/withdraw/email');
       return;
     }
@@ -72,6 +73,7 @@ export const InitiateWithdrawalStep = () => {
     }
 
     setPhoneNumber(phone);
+    setContactEmail(storedEmail.trim());
     setAmountWldStr(amountRaw.trim());
     try {
       const p = JSON.parse(profileRaw) as { nombreCliente?: string };
@@ -207,7 +209,7 @@ export const InitiateWithdrawalStep = () => {
   }
 
   const amountNum = parseFloat(amountWldStr);
-  const amountCrc = amountNum * EXCHANGE_RATES.WLD_TO_CRC;
+  const conv = calculateConversion(amountNum);
 
   return (
     <div className="mx-auto grid w-full max-w-md gap-8">
@@ -215,7 +217,7 @@ export const InitiateWithdrawalStep = () => {
 
       <StepHeader
         title="Resumen del retiro"
-        description="Verificá los datos y creá la referencia para enviar tus WLD"
+        description="Revisá destino, correo y montos estimados; después enviás los WLD desde World App."
         className="gap-4"
       />
 
@@ -242,16 +244,47 @@ export const InitiateWithdrawalStep = () => {
         <div className="border-t border-gray-200" />
 
         <div>
-          <div className="mb-1 text-xs text-gray-500">Monto</div>
-          <div className="text-xl font-semibold tabular-nums text-gray-900">
-            {formatCurrency.WLD(amountNum)}
+          <div className="mb-1 text-xs text-gray-500">Correo de contacto</div>
+          <div className="break-all text-base text-gray-900">{contactEmail}</div>
+        </div>
+
+        <div className="border-t border-gray-200" />
+
+        <div className="space-y-3">
+          <div>
+            <div className="mb-1 text-xs text-gray-500">
+              Enviás en World App
+            </div>
+            <div className="text-xl font-semibold tabular-nums text-gray-900">
+              {formatCurrency.WLD(amountNum)}
+            </div>
           </div>
-          <div className="mt-1 text-sm tabular-nums text-gray-600">
-            ≈ {formatCurrency.CRC(amountCrc)}
-            <span className="pl-1 text-xs font-normal text-gray-400">
-              aprox.
-            </span>
+
+          <div className="space-y-2 border-t border-gray-100 pt-3 text-sm">
+            <div className="flex items-baseline justify-between gap-3 tabular-nums text-gray-700">
+              <span className="text-gray-500">Bruto aprox. en colones</span>
+              <span>{formatCurrency.CRC(conv.crc)}</span>
+            </div>
+            <div className="flex items-baseline justify-between gap-3 tabular-nums text-gray-700">
+              <span className="text-gray-500">Comisión estimada</span>
+              <span>− {formatCurrency.CRC(conv.fee)}</span>
+            </div>
+            <div className="border-t border-gray-200 pt-2" />
+            <div className="flex items-baseline justify-between gap-3 tabular-nums">
+              <span className="font-medium text-gray-900">
+                Recibirías aprox. (CRC)
+              </span>
+              <span className="text-lg font-semibold text-gray-900">
+                {formatCurrency.CRC(conv.netCrc)}
+              </span>
+            </div>
           </div>
+
+          <p className="text-[11px] leading-relaxed text-gray-400">
+            Cifras orientativas según tipo de cambio y comisión configurados en
+            la app. El monto final en colones lo define y liquida Ridivi al
+            procesar tu retiro.
+          </p>
         </div>
       </div>
 
@@ -265,7 +298,7 @@ export const InitiateWithdrawalStep = () => {
         <LiveFeedback
           label={{
             failed: 'No se pudo crear',
-            pending: 'Creando referencia…',
+            pending: 'Preparando retiro…',
             success: 'Listo',
           }}
           state={buttonState}
@@ -287,8 +320,8 @@ export const InitiateWithdrawalStep = () => {
         <div className="space-y-2 text-sm text-gray-700">
           <p className="font-medium text-gray-900">Siguiente paso</p>
           <p>
-            Vas a firmar la transferencia de WLD en cadena con la referencia
-            que generamos. Podés cancelar antes de aceptar en World App.
+            Se abrirá World App para que autorices el envío de WLD. Podés
+            cancelar antes de confirmar; hasta entonces no se debita nada.
           </p>
         </div>
       </InfoBox>
