@@ -20,7 +20,8 @@
     "db:migrate:local": "pnpm run db:migrate",
     "test:db-withdrawal": "tsx --env-file=.env.local scripts/test-withdrawal-db.ts",
     "test:email-compliance": "tsx --env-file=.env.local scripts/test-email-compliance.ts",
-    "backfill:tx-hash": "tsx --env-file=.env.local scripts/backfill-withdrawal-tx-hash.ts"
+    "backfill:tx-hash": "tsx --env-file=.env.local scripts/backfill-withdrawal-tx-hash.ts",
+    "query:wld-prices": "tsx --env-file=.env.local scripts/query-world-wld-prices.ts"
   },
   "dependencies": {
     "@prisma/client": "^6.19.0",
