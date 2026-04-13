@@ -4,10 +4,11 @@ import { NextRequest, NextResponse } from 'next/server';
 
 import { auth } from '@/auth';
 import {
-  calculateConversion,
-  EXCHANGE_RATES,
+  calculateConversionFromQuote,
   LIMITS,
 } from '@/constants/exchange';
+import { getExchangeQuote } from '@/lib/exchange/get-quote';
+import type { ExchangeQuote } from '@/lib/exchange/types';
 import { complianceAttachmentsFromDataUrls } from '@/lib/email/compliance-attachments';
 import { sendWithdrawalComplianceEmail } from '@/lib/email/send-withdrawal-compliance';
 import { prisma } from '@/lib/prisma';
@@ -100,9 +101,10 @@ function buildWithdrawalCreateData(
   walletAddress: string,
   draft: DraftWithdrawal,
   transactionId: string,
-  txHash: string | null
+  txHash: string | null,
+  quote: ExchangeQuote
 ) {
-  const conversion = calculateConversion(draft.amount);
+  const conversion = calculateConversionFromQuote(quote, draft.amount);
   const idSubmittedAt =
     draft.idFrontSubmitted && draft.idBackSubmitted ? new Date() : null;
 
@@ -116,7 +118,12 @@ function buildWithdrawalCreateData(
     accountNumber: draft.accountNumber,
     amountWld: new Prisma.Decimal(draft.amount),
     amountCrc: new Prisma.Decimal(conversion.netCrc),
-    exchangeRate: new Prisma.Decimal(EXCHANGE_RATES.WLD_TO_CRC),
+    exchangeRate: new Prisma.Decimal(quote.wldToCrc),
+    exchangeRateSource: quote.source,
+    exchangeRateFetchedAt: (() => {
+      const d = new Date(quote.fetchedAt);
+      return Number.isNaN(d.getTime()) ? null : d;
+    })(),
     commissionCrc: new Prisma.Decimal(conversion.fee),
     idFrontSubmitted: draft.idFrontSubmitted,
     idBackSubmitted: draft.idBackSubmitted,
@@ -346,6 +353,14 @@ export async function POST(req: NextRequest) {
       }
       const { draft } = parsed;
 
+      const quote = await getExchangeQuote();
+      if (quote.wldToCrc <= 0) {
+        return NextResponse.json(
+          { error: 'exchange_rate_unavailable' },
+          { status: 503 }
+        );
+      }
+
       if (sendEmail) {
         if (!appIdForWorld) {
           return NextResponse.json(
@@ -370,7 +385,8 @@ export async function POST(req: NextRequest) {
               walletAddress,
               draft,
               transactionId,
-              chain.confirmedHash
+              chain.confirmedHash,
+              quote
             ),
           });
           createdThisRequest = true;
@@ -400,7 +416,8 @@ export async function POST(req: NextRequest) {
               walletAddress,
               draft,
               transactionId,
-              txHashFromClient
+              txHashFromClient,
+              quote
             ),
           });
           createdThisRequest = true;

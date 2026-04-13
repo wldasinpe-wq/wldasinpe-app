@@ -1,10 +1,17 @@
 /**
- * Pricing from `NEXT_PUBLIC_*` env vars. Must use **static** `process.env.NEXT_PUBLIC_*`
- * references so Next.js can inline them in the client bundle (dynamic `process.env[name]` does not work).
+ * FX + fee resolution.
  *
- * - `NEXT_PUBLIC_WLD_TO_CRC` — CRC per 1 WLD, or omit and set WLD_TO_USD + USD_TO_CRC.
- * - `NEXT_PUBLIC_COMISION_CRC` — fixed fee per withdrawal in CRC, or FLAT_FEE_USD × USD_TO_CRC.
+ * - Live WLD→CRC (and WLD→USD) via World Get Prices — see `getExchangeQuote()` in `@/lib/exchange/get-quote`.
+ * - Env fallback: `NEXT_PUBLIC_WLD_TO_CRC` or `NEXT_PUBLIC_WLD_TO_USD` + `NEXT_PUBLIC_USD_TO_CRC`.
+ * - Fee: `NEXT_PUBLIC_COMISION_CRC` or `NEXT_PUBLIC_FLAT_FEE_USD` × USD→CRC (CRC from quote legs).
+ *
+ * Client-visible fee env vars must stay `NEXT_PUBLIC_*` with static `process.env` access for bundling.
  */
+
+import type {
+  ConversionBreakdown,
+  ExchangeQuote,
+} from '@/lib/exchange/types';
 
 function parsePositiveFloat(raw: string | undefined): number | null {
   if (raw === undefined || raw === '') return null;
@@ -20,14 +27,14 @@ function parseNonNegativeFloat(raw: string | undefined): number | null {
   return n;
 }
 
-// Static env access only (required for Next.js client bundle).
+// Static env access only (required for Next.js client bundle where used).
 const envWldToCrc = parsePositiveFloat(process.env.NEXT_PUBLIC_WLD_TO_CRC);
 const envWldToUsd = parsePositiveFloat(process.env.NEXT_PUBLIC_WLD_TO_USD);
 const envUsdToCrc = parsePositiveFloat(process.env.NEXT_PUBLIC_USD_TO_CRC);
 const envComisionCrc = parseNonNegativeFloat(process.env.NEXT_PUBLIC_COMISION_CRC);
 const envFlatFeeUsd = parsePositiveFloat(process.env.NEXT_PUBLIC_FLAT_FEE_USD);
 
-function resolveWldToCrc(): number {
+function resolveEnvWldToCrc(): number {
   if (envWldToCrc != null) return envWldToCrc;
   if (envWldToUsd != null && envUsdToCrc != null) {
     return envWldToUsd * envUsdToCrc;
@@ -35,7 +42,7 @@ function resolveWldToCrc(): number {
   return 0;
 }
 
-function resolveWldToUsd(): number {
+function resolveEnvWldToUsd(): number {
   if (envWldToUsd != null) return envWldToUsd;
   if (envWldToCrc != null && envUsdToCrc != null && envUsdToCrc > 0) {
     return envWldToCrc / envUsdToCrc;
@@ -43,7 +50,7 @@ function resolveWldToUsd(): number {
   return 0;
 }
 
-function resolveUsdToCrc(): number {
+function resolveEnvUsdToCrc(): number {
   if (envUsdToCrc != null) return envUsdToCrc;
   if (envWldToCrc != null && envWldToUsd != null && envWldToUsd > 0) {
     return envWldToCrc / envWldToUsd;
@@ -51,31 +58,50 @@ function resolveUsdToCrc(): number {
   return 0;
 }
 
-function resolveFlatFeeCrc(): number {
+/** Fixed fee in CRC from env, using USD→CRC when fee is configured in USD. */
+export function resolveFlatFeeCrcFromEnv(usdToCrc: number): number {
   if (envComisionCrc != null) return envComisionCrc;
-  if (envFlatFeeUsd != null && envUsdToCrc != null) {
-    return envFlatFeeUsd * envUsdToCrc;
+  if (envFlatFeeUsd != null && usdToCrc > 0) {
+    return envFlatFeeUsd * usdToCrc;
   }
   return 0;
 }
 
-export const EXCHANGE_RATES = {
-  get WLD_TO_USD() {
-    return resolveWldToUsd();
-  },
-  get USD_TO_CRC() {
-    return resolveUsdToCrc();
-  },
-  get WLD_TO_CRC() {
-    return resolveWldToCrc();
-  },
-} as const;
+function isoNow(): string {
+  return new Date().toISOString();
+}
 
-export const FEES = {
-  get FLAT_FEE_CRC() {
-    return resolveFlatFeeCrc();
-  },
-} as const;
+/** Quote built only from env (fallback / scripts / tests). */
+export function getEnvExchangeQuote(): ExchangeQuote {
+  const wldToCrc = resolveEnvWldToCrc();
+  const wldToUsd = resolveEnvWldToUsd();
+  const usdToCrc = resolveEnvUsdToCrc();
+  const flatFeeCrc = resolveFlatFeeCrcFromEnv(usdToCrc);
+  return {
+    wldToCrc,
+    wldToUsd,
+    usdToCrc,
+    flatFeeCrc,
+    source: 'env',
+    fetchedAt: isoNow(),
+  };
+}
+
+/** Merge World WLD legs with fee rules from env. */
+export function quoteFromWorldLegs(
+  wldToUsd: number,
+  wldToCrc: number
+): ExchangeQuote {
+  const usdToCrc = wldToCrc / wldToUsd;
+  return {
+    wldToUsd,
+    wldToCrc,
+    usdToCrc,
+    flatFeeCrc: resolveFlatFeeCrcFromEnv(usdToCrc),
+    source: 'world',
+    fetchedAt: isoNow(),
+  };
+}
 
 export const LIMITS = {
   MIN_WLD: 0.1,
@@ -85,21 +111,25 @@ export const LIMITS = {
 export const formatCurrency = {
   WLD: (amount: number) => `${amount.toFixed(2)} WLD`,
   USD: (amount: number) => `$${amount.toFixed(2)}`,
-  CRC: (amount: number) => `₡${amount.toFixed(0)}`,
+  CRC: (amount: number) => `\u20a1${amount.toFixed(0)}`,
 };
 
-export const calculateConversion = (wldAmount: number) => {
-  const wldToUsd = EXCHANGE_RATES.WLD_TO_USD;
-  const wldToCrc = EXCHANGE_RATES.WLD_TO_CRC;
+export function calculateConversionFromQuote(
+  quote: ExchangeQuote,
+  wldAmount: number
+): ConversionBreakdown {
+  const wldToUsd = quote.wldToUsd;
+  const wldToCrc = quote.wldToCrc;
   const usdAmount = wldAmount * wldToUsd;
   const crcAmount = wldAmount * wldToCrc;
-  const netCrc = crcAmount - FEES.FLAT_FEE_CRC;
+  const fee = quote.flatFeeCrc;
+  const netCrc = crcAmount - fee;
 
   return {
     wld: wldAmount,
     usd: usdAmount,
     crc: crcAmount,
-    fee: FEES.FLAT_FEE_CRC,
+    fee,
     netCrc: Math.max(0, netCrc),
   };
-};
+}

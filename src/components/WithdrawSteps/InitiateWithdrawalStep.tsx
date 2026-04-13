@@ -3,8 +3,9 @@
 import { Button, LiveFeedback } from '@worldcoin/mini-apps-ui-kit-react';
 import { useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
+import { useExchangeQuote } from '@/components/ExchangeRatesProvider';
 import {
-  calculateConversion,
+  calculateConversionFromQuote,
   LIMITS,
   formatCurrency,
 } from '@/constants/exchange';
@@ -28,6 +29,8 @@ import { StepHeader } from './ui/StepHeader';
 import { StepProgress } from './ui/StepProgress';
 
 export const InitiateWithdrawalStep = () => {
+  const { quote, loading: quoteLoading, error: quoteError, refetch } =
+    useExchangeQuote();
   const router = useRouter();
   const [phoneNumber, setPhoneNumber] = useState('');
   const [recipientName, setRecipientName] = useState('Destinatario SINPE');
@@ -208,8 +211,35 @@ export const InitiateWithdrawalStep = () => {
     );
   }
 
+  if (quoteLoading) {
+    return (
+      <div className="flex min-h-[400px] items-center justify-center">
+        <div className="text-gray-500">Cargando tasa de cambio…</div>
+      </div>
+    );
+  }
+
+  if (!quote || quote.wldToCrc <= 0) {
+    return (
+      <div className="mx-auto flex min-h-[400px] w-full max-w-md flex-col items-center justify-center gap-4 px-4 text-center">
+        <p className="text-sm text-gray-700">
+          {quoteError ?? 'No pudimos obtener la tasa WLD → colones.'}
+        </p>
+        <Button
+          type="button"
+          onClick={() => refetch()}
+          size="lg"
+          variant="primary"
+          className="rounded-sm"
+        >
+          Reintentar
+        </Button>
+      </div>
+    );
+  }
+
   const amountNum = parseFloat(amountWldStr);
-  const conv = calculateConversion(amountNum);
+  const conv = calculateConversionFromQuote(quote, amountNum);
 
   return (
     <div className="mx-auto grid w-full max-w-md gap-8">

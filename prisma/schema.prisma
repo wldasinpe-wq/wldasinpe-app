@@ -61,8 +61,12 @@ model Withdrawal {
   amountWld     Decimal @map("amount_wld") @db.Decimal(20, 8)
   /// Estimated net CRC to user (after commission), same basis as UI/email.
   amountCrc     Decimal @map("amount_crc") @db.Decimal(20, 4)
-  /// CRC per 1 WLD at initiation.
+  /// CRC per 1 WLD at completion (World Get Prices live quote or env fallback).
   exchangeRate  Decimal @map("exchange_rate") @db.Decimal(20, 8)
+  /// `world` | `env` — how `exchangeRate` was resolved for this row.
+  exchangeRateSource    String?   @map("exchange_rate_source")
+  /// When the FX snapshot was taken (`ExchangeQuote.fetchedAt`).
+  exchangeRateFetchedAt DateTime? @map("exchange_rate_fetched_at")
   commissionCrc Decimal @map("commission_crc") @db.Decimal(20, 4)
 
   transactionId String? @map("transaction_id")

@@ -1,4 +1,5 @@
 import { auth } from '@/auth';
+import { ExchangeRatesProvider } from '@/components/ExchangeRatesProvider';
 import { ConditionalFixedNavigation } from '@/components/Navigation/ConditionalFixedNavigation';
 import { Page } from '@/components/PageLayout';
 import { WldBalanceProvider } from '@/components/WldBalanceDisplay';
@@ -16,7 +17,9 @@ export default async function TabsLayout({
 
   return (
     <Page>
-      <WldBalanceProvider>{children}</WldBalanceProvider>
+      <ExchangeRatesProvider>
+        <WldBalanceProvider>{children}</WldBalanceProvider>
+      </ExchangeRatesProvider>
       <ConditionalFixedNavigation />
     </Page>
   );

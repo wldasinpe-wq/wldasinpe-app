@@ -5,10 +5,12 @@ import { WldBalanceInline, WldBalancePill } from '@/components/WldBalanceDisplay
 import { HomeWithdrawCta } from '@/components/HomeWithdrawCta';
 import { TopBar } from '@worldcoin/mini-apps-ui-kit-react';
 import { Suspense } from 'react';
-import { EXCHANGE_RATES, FEES, formatCurrency } from '@/constants/exchange';
+import { formatCurrency } from '@/constants/exchange';
+import { getExchangeQuote } from '@/lib/exchange/get-quote';
 
 export default async function Home() {
   await auth();
+  const quote = await getExchangeQuote();
 
   return (
     <>
@@ -44,7 +46,9 @@ export default async function Home() {
           </div>
           <div className="flex items-center justify-between">
             <span className="text-gray-900 font-semibold text-lg">1 WLD</span>
-            <span className="text-gray-900 font-bold text-2xl">{formatCurrency.CRC(EXCHANGE_RATES.WLD_TO_CRC)}</span>
+            <span className="text-gray-900 font-bold text-2xl">
+              {formatCurrency.CRC(quote.wldToCrc)}
+            </span>
           </div>
         </div>
 
@@ -56,7 +60,7 @@ export default async function Home() {
 
         {/* Info */}
         <div className="text-center text-xs text-gray-500 max-w-md space-y-1 border-t border-gray-200 pt-6">
-          <p>Comisión fija: {formatCurrency.CRC(FEES.FLAT_FEE_CRC)} por transacción</p>
+          <p>Comisión fija: {formatCurrency.CRC(quote.flatFeeCrc)} por transacción</p>
           <p>Monto mínimo: 0.1 WLD</p>
         </div>
       </Page.Main>

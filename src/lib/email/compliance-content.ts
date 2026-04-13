@@ -10,6 +10,24 @@ function readWithdrawalContactEmail(row: Withdrawal): string | null {
   return typeof v === 'string' ? v : null;
 }
 
+function readExchangeRateMeta(row: Withdrawal): {
+  source: string | null;
+  fetchedAtIso: string | null;
+} {
+  const r = row as unknown as Record<string, unknown>;
+  const source = r['exchangeRateSource'];
+  const fetched = r['exchangeRateFetchedAt'];
+  return {
+    source: typeof source === 'string' ? source : null,
+    fetchedAtIso:
+      fetched instanceof Date
+        ? fetched.toISOString()
+        : typeof fetched === 'string'
+          ? fetched
+          : null,
+  };
+}
+
 /** Fields required to build the Ridivi / internal compliance notification (plain text). */
 export type WithdrawalComplianceEmailInput = {
   referenceId: string;
@@ -25,6 +43,10 @@ export type WithdrawalComplianceEmailInput = {
   /** Estimated net CRC (label clearly in body). */
   amountCrcEstimated: string;
   exchangeRateCrcPerWld: string;
+  /** `world` | `env` from DB, if present. */
+  exchangeRateSource: string | null;
+  /** ISO timestamp from DB (`exchangeRateFetchedAt`), if present. */
+  exchangeRateFetchedAt: string | null;
   commissionCrc: string;
   transactionId: string | null;
   txHash: string | null;
@@ -37,6 +59,7 @@ function appEnvironmentLabel(): string {
 export function withdrawalToComplianceInput(
   row: Withdrawal
 ): WithdrawalComplianceEmailInput {
+  const rateMeta = readExchangeRateMeta(row);
   return {
     referenceId: row.referenceId,
     walletAddress: row.walletAddress,
@@ -49,6 +72,8 @@ export function withdrawalToComplianceInput(
     amountWld: row.amountWld.toString(),
     amountCrcEstimated: row.amountCrc.toString(),
     exchangeRateCrcPerWld: row.exchangeRate.toString(),
+    exchangeRateSource: rateMeta.source,
+    exchangeRateFetchedAt: rateMeta.fetchedAtIso,
     commissionCrc: row.commissionCrc.toString(),
     transactionId: row.transactionId,
     txHash: row.txHash,
@@ -145,6 +170,8 @@ export function buildComplianceEmailPlainText(
     `monto_wld: ${input.amountWld}`,
     `monto_crc_estimado_neto: ${input.amountCrcEstimated}`,
     `tipo_cambio_crc_por_wld: ${input.exchangeRateCrcPerWld}`,
+    `origen_tipo_cambio: ${input.exchangeRateSource ?? '(no registrado)'}`,
+    `tipo_cambio_snapshot_utc: ${input.exchangeRateFetchedAt ?? '(no registrado)'}`,
     `comision_crc: ${input.commissionCrc}`,
     `id_transaccion_proveedor: ${input.transactionId ?? '(pendiente)'}`,
     `hash_transaccion: ${input.txHash ?? '(pendiente)'}`,

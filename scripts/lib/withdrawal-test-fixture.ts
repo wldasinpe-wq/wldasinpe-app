@@ -7,8 +7,8 @@ import { Prisma } from '@prisma/client';
 
 import type { WithdrawalComplianceEmailInput } from '../../src/lib/email/compliance-content';
 import {
-  calculateConversion,
-  EXCHANGE_RATES,
+  calculateConversionFromQuote,
+  getEnvExchangeQuote,
 } from '../../src/constants/exchange';
 
 // =============================================================================
@@ -64,10 +64,11 @@ function resolveAmountsFromMock(wld: number) {
       commissionCrc: m.commissionCrc,
     };
   }
-  const c = calculateConversion(wld);
+  const q = getEnvExchangeQuote();
+  const c = calculateConversionFromQuote(q, wld);
   return {
     amountCrc: c.netCrc,
-    exchangeRate: EXCHANGE_RATES.WLD_TO_CRC,
+    exchangeRate: q.wldToCrc,
     commissionCrc: c.fee,
   };
 }
@@ -133,6 +134,8 @@ export function buildComplianceEmailInputFromMock(
     amountWld: String(wld),
     amountCrcEstimated: String(amountCrc),
     exchangeRateCrcPerWld: String(exchangeRate),
+    exchangeRateSource: 'env',
+    exchangeRateFetchedAt: new Date().toISOString(),
     commissionCrc: String(commissionCrc),
     transactionId: WITHDRAWAL_TEST_MOCK.chain.transactionId,
     txHash: WITHDRAWAL_TEST_MOCK.chain.txHash,

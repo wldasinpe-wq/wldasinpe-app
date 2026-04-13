@@ -6,11 +6,8 @@ import { useSession } from 'next-auth/react';
 import { useState, useEffect, useLayoutEffect } from 'react';
 import * as React from 'react';
 import { parseUnits } from 'viem';
-import {
-  EXCHANGE_RATES,
-  LIMITS,
-  formatCurrency,
-} from '@/constants/exchange';
+import { useExchangeQuote } from '@/components/ExchangeRatesProvider';
+import { LIMITS, formatCurrency } from '@/constants/exchange';
 import { wldWeiToKeypadAmount, wldWeiToNumber } from '@/lib/wld-onchain';
 import {
   SINPE_SESSION_AMOUNT_WLD,
@@ -44,6 +41,8 @@ function tryParseAmountWei(amountStr: string): bigint | null {
 }
 
 export const AmountStep = () => {
+  const { quote, loading: quoteLoading, error: quoteError, refetch } =
+    useExchangeQuote();
   const { status: sessionStatus } = useSession();
   const {
     wei: balanceWei,
@@ -253,7 +252,8 @@ export const AmountStep = () => {
     router.push('/withdraw/id');
   };
 
-  const amountCRC = parseFloat(amountWLD || '0') * EXCHANGE_RATES.WLD_TO_CRC;
+  const wldToCrc = quote?.wldToCrc ?? 0;
+  const amountCRC = parseFloat(amountWLD || '0') * wldToCrc;
   const amountWeiEntered = tryParseAmountWei(amountWLD);
   const minWei = parseUnits(String(LIMITS.MIN_WLD), WLD_DECIMALS);
   const isOverBalance =
@@ -325,9 +325,26 @@ export const AmountStep = () => {
             <p
               className={`text-base tabular-nums ${isOverBalance ? 'text-red-600' : 'text-gray-700'}`}
             >
-              ≈ {formatCurrency.CRC(amountCRC)}
+              ≈{' '}
+              {quoteLoading
+                ? '…'
+                : !quote || quote.wldToCrc <= 0
+                  ? '—'
+                  : formatCurrency.CRC(amountCRC)}
               <span className="text-sm font-normal text-gray-400"> · aprox.</span>
             </p>
+            {!quoteLoading && (!quote || quote.wldToCrc <= 0) ? (
+              <p className="text-center text-xs text-red-600">
+                {quoteError ?? 'Tasa no disponible.'}{' '}
+                <button
+                  type="button"
+                  onClick={() => refetch()}
+                  className="font-semibold text-blue-600 underline"
+                >
+                  Reintentar
+                </button>
+              </p>
+            ) : null}
             <p className="text-center text-xs leading-relaxed text-gray-500">
               {balanceStatus === 'loading' ? (
                 <>Obteniendo saldo…</>
