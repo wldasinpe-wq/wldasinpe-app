@@ -142,6 +142,94 @@ function normalizeTxHashForSubject(
   return `0x${hex.toLowerCase()}`;
 }
 
+type ComplianceField = {
+  key: string;
+  value: string;
+};
+
+function formatFieldLabel(key: string): string {
+  return key.replace(/_/g, ' ');
+}
+
+function escapeHtml(value: string): string {
+  return value
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;');
+}
+
+function buildComplianceFields(
+  input: WithdrawalComplianceEmailInput,
+  timestampUtc: Date
+): { beforeBreak: ComplianceField[]; afterBreak: ComplianceField[] } {
+  const ts = timestampUtc.toISOString();
+
+  const beforeBreak: ComplianceField[] = [
+    { key: 'direccion_billetera', value: input.walletAddress },
+    { key: 'telefono_sinpe_movil', value: input.phoneNumber },
+    { key: 'cuenta_destino', value: input.accountNumber },
+    {
+      key: 'nombre_legal',
+      value: `${input.firstName} ${input.lastName}`.trim(),
+    },
+    { key: 'numero_identificacion', value: input.idNumber },
+    {
+      key: 'email_contacto',
+      value: input.contactEmail?.trim() || '(no proporcionado)',
+    },
+    { key: 'monto_wld', value: input.amountWld },
+    { key: 'monto_crc_estimado_neto', value: input.amountCrcEstimated },
+    { key: 'tipo_cambio_crc_por_wld', value: input.exchangeRateCrcPerWld },
+    {
+      key: 'origen_tipo_cambio',
+      value: input.exchangeRateSource ?? '(no registrado)',
+    },
+    {
+      key: 'tipo_cambio_snapshot_utc',
+      value: input.exchangeRateFetchedAt ?? '(no registrado)',
+    },
+    { key: 'comision_crc', value: input.commissionCrc },
+    { key: 'referencia_retiro', value: input.referenceId },
+  ];
+
+  const afterBreak: ComplianceField[] = [
+    {
+      key: 'id_transaccion_proveedor',
+      value: input.transactionId ?? '(pendiente)',
+    },
+    {
+      key: 'hash_transaccion',
+      value: input.txHash ?? '(pendiente)',
+    },
+    { key: 'marca_tiempo_utc', value: ts },
+    { key: 'entorno', value: appEnvironmentLabel() },
+  ];
+
+  return { beforeBreak, afterBreak };
+}
+
+function complianceEmailIntroLines(): string[] {
+  return [
+    'Hola,',
+    '',
+    'Adjuntamos los datos del retiro en cadena y las imágenes del documento de identidad (frente y reverso) tal como fueron cargadas en la aplicación.',
+    '',
+    'A continuación el detalle estructurado:',
+    '',
+  ];
+}
+
+function formatComplianceFieldPlainText(field: ComplianceField): string {
+  return `${formatFieldLabel(field.key)}: ${field.value}`;
+}
+
+function formatComplianceFieldHtml(field: ComplianceField): string {
+  const label = escapeHtml(formatFieldLabel(field.key));
+  const value = escapeHtml(field.value);
+  return `<strong>${label}</strong>: ${value}`;
+}
+
 /**
  * Plain-text body: Spanish intro + structured fields (aligned with infra docs).
  */
@@ -149,37 +237,55 @@ export function buildComplianceEmailPlainText(
   input: WithdrawalComplianceEmailInput,
   timestampUtc: Date
 ): string {
-  const ts = timestampUtc.toISOString();
-  const intro = [
-    'Hola,',
-    '',
-    'Adjuntamos los datos del retiro en cadena y las imágenes del documento de identidad (frente y reverso) tal como fueron cargadas en la aplicación.',
-    '',
-    'A continuación el detalle estructurado:',
-    '',
-  ].join('\n');
+  const { beforeBreak, afterBreak } = buildComplianceFields(
+    input,
+    timestampUtc
+  );
+  const intro = complianceEmailIntroLines().join('\n');
 
   const data = [
-    `referencia_retiro: ${input.referenceId}`,
-    `direccion_billetera: ${input.walletAddress}`,
-    `telefono_sinpe_movil: ${input.phoneNumber}`,
-    `cuenta_destino: ${input.accountNumber}`,
-    `nombre_legal: ${input.firstName} ${input.lastName}`.trim(),
-    `numero_identificacion: ${input.idNumber}`,
-    `email_contacto: ${input.contactEmail?.trim() || '(no proporcionado)'}`,
-    `monto_wld: ${input.amountWld}`,
-    `monto_crc_estimado_neto: ${input.amountCrcEstimated}`,
-    `tipo_cambio_crc_por_wld: ${input.exchangeRateCrcPerWld}`,
-    `origen_tipo_cambio: ${input.exchangeRateSource ?? '(no registrado)'}`,
-    `tipo_cambio_snapshot_utc: ${input.exchangeRateFetchedAt ?? '(no registrado)'}`,
-    `comision_crc: ${input.commissionCrc}`,
-    `id_transaccion_proveedor: ${input.transactionId ?? '(pendiente)'}`,
-    `hash_transaccion: ${input.txHash ?? '(pendiente)'}`,
-    `marca_tiempo_utc: ${ts}`,
-    `entorno: ${appEnvironmentLabel()}`,
+    ...beforeBreak.map(formatComplianceFieldPlainText),
+    '',
+    ...afterBreak.map(formatComplianceFieldPlainText),
     '',
     'Registro interno de la operación; no es comprobante oficial ni envío de compliance regulatorio por sí solo.',
   ].join('\n');
 
   return `${intro}${data}`;
+}
+
+/**
+ * HTML body: same content as plain text with bold field labels.
+ */
+export function buildComplianceEmailHtml(
+  input: WithdrawalComplianceEmailInput,
+  timestampUtc: Date
+): string {
+  const { beforeBreak, afterBreak } = buildComplianceFields(
+    input,
+    timestampUtc
+  );
+  const intro = complianceEmailIntroLines()
+    .map((line) =>
+      line === ''
+        ? '<br>'
+        : `<p style="margin:0 0 0.75em 0;">${escapeHtml(line)}</p>`
+    )
+    .join('\n');
+
+  const data = [
+    ...beforeBreak.map(formatComplianceFieldHtml),
+    '<br>',
+    ...afterBreak.map(formatComplianceFieldHtml),
+    '<br>',
+    '<p style="margin:0.75em 0 0 0;">Registro interno de la operación; no es comprobante oficial ni envío de compliance regulatorio por sí solo.</p>',
+  ].join('<br>\n');
+
+  return `<!DOCTYPE html>
+<html lang="es">
+<body style="font-family:sans-serif;font-size:14px;line-height:1.5;color:#111;">
+${intro}
+${data}
+</body>
+</html>`;
 }

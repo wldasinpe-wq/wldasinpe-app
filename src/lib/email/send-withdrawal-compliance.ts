@@ -6,6 +6,7 @@ import type { Withdrawal } from '@prisma/client';
 import { prisma } from '@/lib/prisma';
 
 import {
+  buildComplianceEmailHtml,
   buildComplianceEmailPlainText,
   buildComplianceEmailSubject,
   withdrawalToComplianceInput,
@@ -92,6 +93,7 @@ export async function sendWithdrawalComplianceEmailFromInput(
 
   const timestampUtc = new Date();
   const text = buildComplianceEmailPlainText(input, timestampUtc);
+  const html = buildComplianceEmailHtml(input, timestampUtc);
   const subject = buildComplianceEmailSubject(input);
 
   const recordSkipped = async (reason: string, detail?: string) => {
@@ -162,6 +164,7 @@ export async function sendWithdrawalComplianceEmailFromInput(
         to: [to],
         subject,
         text,
+        html,
         ...(attachments?.length ? { attachments } : {}),
       },
       { idempotencyKey: input.referenceId }

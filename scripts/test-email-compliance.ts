@@ -2,7 +2,7 @@
  * Send ONE real compliance notification email (Resend) using mock withdrawal data.
  * Does not touch the database — use `pnpm test:db-withdrawal` for that.
  *
- * Subject/body match production (`buildComplianceEmailSubject` / `buildComplianceEmailPlainText`).
+ * Subject/body match production (`buildComplianceEmailSubject` / plain + HTML builders).
  * The referenceId is built as:
  *   <fixture base> + "_email_" + <short unique suffix> (timestamp in base36)
  * so each run gets a fresh idempotency key in Resend and you can tell test sends apart.
