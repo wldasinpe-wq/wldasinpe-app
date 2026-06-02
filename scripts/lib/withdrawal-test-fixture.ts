@@ -138,6 +138,5 @@ export function buildComplianceEmailInputFromMock(
     exchangeRateFetchedAt: new Date().toISOString(),
     commissionCrc: String(commissionCrc),
     transactionId: WITHDRAWAL_TEST_MOCK.chain.transactionId,
-    txHash: WITHDRAWAL_TEST_MOCK.chain.txHash,
   };
 }

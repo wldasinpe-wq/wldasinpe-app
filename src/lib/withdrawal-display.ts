@@ -5,7 +5,6 @@ import type { WithdrawalStatus } from '@prisma/client';
  */
 export type WithdrawalDisplayPhase =
   | 'awaiting_payment'
-  | 'confirming_chain'
   | 'transfer_ok_email_processing'
   | 'transfer_ok_email_failed'
   | 'transfer_failed_chain'
@@ -14,11 +13,11 @@ export type WithdrawalDisplayPhase =
 
 export function withdrawalDisplayPhase(args: {
   status: WithdrawalStatus;
-  txHash: string | null | undefined;
+  transactionId: string | null | undefined;
   lastError: string | null | undefined;
 }): WithdrawalDisplayPhase {
-  const { status, txHash, lastError } = args;
-  const hash = txHash?.trim() ?? '';
+  const { status, transactionId, lastError } = args;
+  const tid = transactionId?.trim() ?? '';
   const err = lastError?.trim() ?? '';
 
   if (status === 'PENDING_PAYMENT') return 'awaiting_payment';
@@ -26,7 +25,7 @@ export function withdrawalDisplayPhase(args: {
   if (status === 'FAILED') return 'withdrawal_marked_failed';
   if (status !== 'SUBMITTED') return 'awaiting_payment';
 
-  if (!hash) return 'confirming_chain';
+  if (!tid) return 'awaiting_payment';
   if (err === 'on_chain_transaction_failed') return 'transfer_failed_chain';
   if (err.length > 0) return 'transfer_ok_email_failed';
   return 'transfer_ok_email_processing';

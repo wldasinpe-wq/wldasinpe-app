@@ -48,8 +48,8 @@ export type WithdrawalComplianceEmailInput = {
   /** ISO timestamp from DB (`exchangeRateFetchedAt`), if present. */
   exchangeRateFetchedAt: string | null;
   commissionCrc: string;
+  /** World MiniKit payment id (`pay` success payload). */
   transactionId: string | null;
-  txHash: string | null;
 };
 
 function appEnvironmentLabel(): string {
@@ -76,18 +76,16 @@ export function withdrawalToComplianceInput(
     exchangeRateFetchedAt: rateMeta.fetchedAtIso,
     commissionCrc: row.commissionCrc.toString(),
     transactionId: row.transactionId,
-    txHash: row.txHash,
   };
 }
 
 type ComplianceEmailSubjectInput = Pick<
   WithdrawalComplianceEmailInput,
-  'referenceId' | 'txHash' | 'amountWld' | 'amountCrcEstimated'
+  'referenceId' | 'transactionId' | 'amountWld' | 'amountCrcEstimated'
 >;
 
 /**
- * Inbox-friendly subject: WLD→CRC amounts + short World Chain hash for explorer match.
- * Full hash stays in the body. When hash is missing, uses a shortened reference.
+ * Inbox-friendly subject: amounts + shortened World payment id for support lookup.
  */
 export function buildComplianceEmailSubject(
   input: ComplianceEmailSubjectInput
@@ -96,12 +94,12 @@ export function buildComplianceEmailSubject(
   const crc = formatCrcForSubject(input.amountCrcEstimated);
   const amounts = `${wld} WLD → ${crc} CRC est.`;
 
-  const shortHash = shortenTxHashForSubjectDisplay(input.txHash);
-  const chainPart = shortHash
-    ? `World Chain transaction hash ${shortHash}`
-    : `sin hash aún - ref ${shortenRefForSubject(input.referenceId)}`;
+  const tid = input.transactionId?.trim();
+  const idPart = tid
+    ? `World payment id ${shortenTransactionIdForSubject(tid)}`
+    : `ref ${shortenRefForSubject(input.referenceId)}`;
 
-  return `[Ridivi Withdraw · WLD a CRC] ${amounts} - ${chainPart}`;
+  return `[Ridivi Withdraw · WLD a CRC] ${amounts} - ${idPart}`;
 }
 
 function formatWldForSubject(raw: string): string {
@@ -117,29 +115,16 @@ function formatCrcForSubject(raw: string): string {
   return Math.round(n).toLocaleString('es-CR');
 }
 
-/** `0x` + first/last hex (ellipsis) for mobile inbox truncation. */
-function shortenTxHashForSubjectDisplay(
-  raw: string | null | undefined
-): string | null {
-  const full = normalizeTxHashForSubject(raw);
-  if (!full || full.length <= 18) return full;
-  return `${full.slice(0, 10)}…${full.slice(-6)}`;
+function shortenTransactionIdForSubject(id: string): string {
+  const t = id.trim();
+  if (t.length <= 18) return t;
+  return `${t.slice(0, 10)}…${t.slice(-6)}`;
 }
 
 function shortenRefForSubject(ref: string): string {
   const t = ref.trim();
   if (t.length <= 14) return t;
   return `${t.slice(0, 8)}…${t.slice(-4)}`;
-}
-
-function normalizeTxHashForSubject(
-  raw: string | null | undefined
-): string | null {
-  const t = raw?.trim();
-  if (!t) return null;
-  const hex = t.startsWith('0x') || t.startsWith('0X') ? t.slice(2) : t;
-  if (!/^[a-fA-F0-9]+$/i.test(hex) || hex.length < 8) return null;
-  return `0x${hex.toLowerCase()}`;
 }
 
 type ComplianceField = {
@@ -195,12 +180,8 @@ function buildComplianceFields(
 
   const afterBreak: ComplianceField[] = [
     {
-      key: 'id_transaccion_proveedor',
+      key: 'id_pago_world_minikit',
       value: input.transactionId ?? '(pendiente)',
-    },
-    {
-      key: 'hash_transaccion',
-      value: input.txHash ?? '(pendiente)',
     },
     { key: 'marca_tiempo_utc', value: ts },
     { key: 'entorno', value: appEnvironmentLabel() },
@@ -213,7 +194,7 @@ function complianceEmailIntroLines(): string[] {
   return [
     'Hola,',
     '',
-    'Adjuntamos los datos del retiro en cadena y las imágenes del documento de identidad (frente y reverso) tal como fueron cargadas en la aplicación.',
+    'Adjuntamos los datos del retiro (incluido el id de pago World / MiniKit) y las imágenes del documento de identidad (frente y reverso) tal como fueron cargadas en la aplicación.',
     '',
     'A continuación el detalle estructurado:',
     '',

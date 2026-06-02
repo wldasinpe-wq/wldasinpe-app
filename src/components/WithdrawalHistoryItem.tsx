@@ -30,30 +30,24 @@ const PHASE_COPY: Record<
     subtitle:
       'Aún no registramos la confirmación del envío de WLD desde World App.',
   },
-  confirming_chain: {
-    title: 'Confirmando en la red',
-    subtitle:
-      'Ya iniciaste el pago; estamos esperando la confirmación en World Chain.',
-  },
   transfer_ok_email_processing: {
-    title: 'Transferencia lista',
+    title: 'Pago registrado',
     subtitle:
-      'El pago figura en cadena; estamos terminando el registro del aviso a Ridivi.',
+      'World App confirmó el envío; estamos terminando el aviso a Ridivi.',
   },
   transfer_ok_email_failed: {
-    title: 'Transferencia lista; aviso no enviado',
+    title: 'Pago registrado; aviso no enviado',
     subtitle:
-      'Los WLD ya están en la blockchain, pero no pudimos enviar el correo a Ridivi. Usá los datos de abajo o escribinos con la referencia.',
+      'El pago figura con id World, pero no pudimos enviar el correo a Ridivi. Usá los datos de abajo o escribinos con la referencia.',
   },
   transfer_failed_chain: {
-    title: 'Sin confirmación del pago',
+    title: 'Retiro con error',
     subtitle:
-      'No pudimos validar un pago exitoso en la blockchain para este retiro.',
+      'Este retiro quedó con un error de validación. Escribinos con la referencia si necesitás ayuda.',
   },
   completed: {
     title: 'Retiro completado',
-    subtitle:
-      'Transferencia confirmada en cadena y aviso enviado a Ridivi.',
+    subtitle: 'Pago registrado en World y aviso enviado a Ridivi.',
   },
   withdrawal_marked_failed: {
     title: 'Retiro no completado',
@@ -195,23 +189,6 @@ export function WithdrawalHistoryItem({
             copyKey={`${w.id}-ref`}
           />
 
-          {tx ? (
-            <CopyRow
-              label="Hash de la transacción (blockchain)"
-              value={tx}
-              mono
-              onCopy={copy}
-              copied={copied}
-              copyKey={`${w.id}-tx`}
-              href={txExplorer}
-            />
-          ) : (
-            <p className="text-xs text-gray-500">
-              Hash de transacción: aún no disponible (se guarda cuando la red
-              confirma el pago).
-            </p>
-          )}
-
           {w.transactionId?.trim() ? (
             <CopyRow
               label="ID de pago (World / MiniKit)"
@@ -220,6 +197,18 @@ export function WithdrawalHistoryItem({
               onCopy={copy}
               copied={copied}
               copyKey={`${w.id}-tid`}
+            />
+          ) : null}
+
+          {tx ? (
+            <CopyRow
+              label="Hash en blockchain (opcional)"
+              value={tx}
+              mono
+              onCopy={copy}
+              copied={copied}
+              copyKey={`${w.id}-tx`}
+              href={txExplorer}
             />
           ) : null}
 

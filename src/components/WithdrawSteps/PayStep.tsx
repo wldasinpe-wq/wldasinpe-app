@@ -20,14 +20,6 @@ import {
   hapticSuccess,
 } from '@/lib/haptics';
 import { splitLegalName } from '@/lib/split-legal-name';
-import {
-  TRANSACTION_NOT_READY_ERROR,
-  TRANSACTION_PENDING_ERROR,
-} from '@/lib/world-minikit-transaction';
-
-const CHAIN_POLL_INTERVAL_MS = 2000;
-/** World docs: on-chain confirmation can take a few minutes. */
-const CHAIN_POLL_MAX_MS = 5 * 60 * 1000;
 import { InfoBox } from './ui/InfoBox';
 import { StepHeader } from './ui/StepHeader';
 import { StepProgress } from './ui/StepProgress';
@@ -42,20 +34,7 @@ function userMessageForCompleteWithdrawalFailure(
   errorCode?: string
 ): string {
   const code = errorCode?.trim() ?? '';
-  if (status === 408 || code === 'confirmation_timeout') {
-    return 'La red tardó demasiado en confirmar. Tocá Reintentar para seguir esperando el aviso a Ridivi.';
-  }
   switch (code) {
-    case 'reference_mismatch':
-      return 'El pago no coincide con este retiro. Si sigue pasando, escribinos a info@ridivi.com.';
-    case 'on_chain_transaction_failed':
-      return 'La transacción en cadena falló. Si ves un débito en World App, escribinos a info@ridivi.com con el detalle que muestre la app.';
-    case 'transaction_not_ready':
-      return 'La red aún no terminó de confirmar el pago. Tocá Reintentar en unos segundos.';
-    case 'transaction_not_found':
-      return 'No encontramos este pago en World todavía. Tocá Reintentar; si no cambia, escribinos a info@ridivi.com.';
-    case 'transaction_lookup_failed':
-      return 'No pudimos consultar el estado del pago con World. Reintentá en un momento o escribinos a info@ridivi.com.';
     case 'invalid_withdrawal_status':
       return 'Este retiro no se puede completar desde acá (estado inválido). Escribinos a info@ridivi.com.';
     case 'Withdrawal not found':
@@ -90,17 +69,6 @@ function userMessageForCompleteWithdrawalFailure(
     return 'No pudimos validar el retiro. Volvé atrás o escribinos a info@ridivi.com.';
   }
   return 'La transferencia se envió, pero no pudimos registrar el retiro ni enviar el aviso. Tocá Reintentar o escribinos a info@ridivi.com.';
-}
-
-function retryMessageForCompleteWithdrawalFailure(
-  status: number,
-  errorCode?: string
-): string {
-  const code = errorCode?.trim() ?? '';
-  if (status === 408 || code === 'confirmation_timeout') {
-    return 'Seguimos esperando confirmación en la cadena. Reintentá en unos segundos.';
-  }
-  return userMessageForCompleteWithdrawalFailure(status, errorCode);
 }
 
 function clearWithdrawalSession() {
@@ -186,7 +154,6 @@ export const PayStep = () => {
         body: JSON.stringify({
           referenceId,
           transactionId,
-          txHash: null,
           idFrontDataUrl,
           idBackDataUrl,
           phoneNumber,
@@ -204,48 +171,26 @@ export const PayStep = () => {
     []
   );
 
-  /** Calls complete-withdrawal until World reports `mined` (or error / timeout). */
-  const finalizeAfterChainConfirmation = useCallback(
+  const completeWithdrawal = useCallback(
     async (
       referenceId: string,
       transactionId: string
     ): Promise<FinalizeWithdrawalResult> => {
-      const started = Date.now();
-      for (;;) {
-        const res = await postCompleteWithdrawal(referenceId, transactionId);
-        if (res.ok) {
-          return { ok: true };
-        }
-        let payload: { error?: string } = {};
-        try {
-          payload = (await res.json()) as { error?: string };
-        } catch {
-          /* ignore */
-        }
-        const pollAgain =
-          (res.status === 409 &&
-            (payload.error === TRANSACTION_PENDING_ERROR ||
-              payload.error === TRANSACTION_NOT_READY_ERROR)) ||
-          (res.status === 502 &&
-            payload.error === TRANSACTION_NOT_READY_ERROR);
-
-        if (pollAgain) {
-          if (Date.now() - started > CHAIN_POLL_MAX_MS) {
-            return {
-              ok: false,
-              status: 408,
-              error: 'confirmation_timeout',
-            };
-          }
-          await new Promise((r) => setTimeout(r, CHAIN_POLL_INTERVAL_MS));
-          continue;
-        }
-        return {
-          ok: false,
-          status: res.status,
-          error: payload.error,
-        };
+      const res = await postCompleteWithdrawal(referenceId, transactionId);
+      if (res.ok) {
+        return { ok: true };
       }
+      let payload: { error?: string } = {};
+      try {
+        payload = (await res.json()) as { error?: string };
+      } catch {
+        /* ignore */
+      }
+      return {
+        ok: false,
+        status: res.status,
+        error: payload.error,
+      };
     },
     [postCompleteWithdrawal]
   );
@@ -284,7 +229,7 @@ export const PayStep = () => {
 
       if (result.finalPayload.status === 'success') {
         const p = result.finalPayload;
-        const completeRes = await finalizeAfterChainConfirmation(
+        const completeRes = await completeWithdrawal(
           p.reference,
           p.transaction_id
         );
@@ -332,7 +277,7 @@ export const PayStep = () => {
     setError('');
     setButtonState('pending');
     try {
-      const completeRes = await finalizeAfterChainConfirmation(
+      const completeRes = await completeWithdrawal(
         payProof.referenceId,
         payProof.transactionId
       );
@@ -340,7 +285,7 @@ export const PayStep = () => {
         hapticError();
         setButtonState('failed');
         setError(
-          retryMessageForCompleteWithdrawalFailure(
+          userMessageForCompleteWithdrawalFailure(
             completeRes.status,
             completeRes.error
           )
@@ -395,8 +340,8 @@ export const PayStep = () => {
         </div>
         <p className="text-xs leading-relaxed text-gray-500">
           Va a la billetera de Ridivi en World Chain para completar tu retiro
-          SINPE. El hash de la transacción queda en World App cuando se
-          confirme.
+          SINPE. El comprobante en World App incluye el id de pago que Ridivi
+          usa para conciliar.
         </p>
       </div>
 
@@ -429,7 +374,7 @@ export const PayStep = () => {
         <LiveFeedback
           label={{
             failed: 'Envío fallido',
-            pending: 'Confirmando en la cadena…',
+            pending: 'Registrando retiro…',
             success: 'Retiro exitoso',
           }}
           state={buttonState}
@@ -452,8 +397,8 @@ export const PayStep = () => {
           <p className="font-medium text-gray-900">Importante</p>
           <p>
             Revisá el monto en el modal de World App antes de confirmar. Para
-            soporte, Ridivi usa el comprobante o el hash que veas en la app
-            cuando la red confirme — no hace falta ningún otro código de acá.
+            soporte, Ridivi usa el id de pago de World App o la referencia de
+            este retiro.
           </p>
         </div>
       </InfoBox>

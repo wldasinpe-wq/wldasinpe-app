@@ -12,12 +12,6 @@ import type { ExchangeQuote } from '@/lib/exchange/types';
 import { complianceAttachmentsFromDataUrls } from '@/lib/email/compliance-attachments';
 import { sendWithdrawalComplianceEmail } from '@/lib/email/send-withdrawal-compliance';
 import { prisma } from '@/lib/prisma';
-import { getWorldchainTxOutcome } from '@/lib/wld-onchain';
-import {
-  TRANSACTION_NOT_READY_ERROR,
-  TRANSACTION_PENDING_ERROR,
-  fetchMinikitPaymentTransaction,
-} from '@/lib/world-minikit-transaction';
 
 function normalizeWallet(a: string) {
   return a.toLowerCase();
@@ -101,7 +95,6 @@ function buildWithdrawalCreateData(
   walletAddress: string,
   draft: DraftWithdrawal,
   transactionId: string,
-  txHash: string | null,
   quote: ExchangeQuote
 ) {
   const conversion = calculateConversionFromQuote(quote, draft.amount);
@@ -130,127 +123,10 @@ function buildWithdrawalCreateData(
     idSubmittedAt,
     contactEmail: draft.contactEmail,
     transactionId,
-    txHash,
+    txHash: null,
     status: 'SUBMITTED' as const,
     lastError: null,
   };
-}
-
-/**
- * Resolves a confirmed tx hash from World + World Chain, optionally updating
- * an existing row on failure.
- */
-async function resolveConfirmedHashFromWorld(
-  transactionId: string,
-  referenceId: string,
-  appId: string,
-  withdrawalIdForFailure: string | null
-): Promise<
-  | { ok: true; confirmedHash: string }
-  | { ok: false; response: Response }
-> {
-  let chainTx;
-  try {
-    chainTx = await fetchMinikitPaymentTransaction(transactionId, appId);
-  } catch (e) {
-    console.error('[complete-withdrawal] World transaction lookup:', e);
-    return {
-      ok: false,
-      response: NextResponse.json(
-        { error: 'transaction_lookup_failed' },
-        { status: 503 }
-      ),
-    };
-  }
-
-  if (!chainTx) {
-    return {
-      ok: false,
-      response: NextResponse.json(
-        { error: 'transaction_not_found' },
-        { status: 404 }
-      ),
-    };
-  }
-
-  if (chainTx.reference !== referenceId) {
-    return {
-      ok: false,
-      response: NextResponse.json({ error: 'reference_mismatch' }, { status: 403 }),
-    };
-  }
-
-  const apiHash = chainTx.transaction_hash?.trim() ?? '';
-  let confirmedHash: string | null = null;
-
-  if (chainTx.transaction_status === 'mined' && apiHash) {
-    confirmedHash = apiHash;
-  } else if (apiHash) {
-    const outcome = await getWorldchainTxOutcome(apiHash);
-    if (outcome === 'success') {
-      confirmedHash = apiHash;
-    } else if (outcome === 'reverted') {
-      if (withdrawalIdForFailure) {
-        await prisma.withdrawal.update({
-          where: { id: withdrawalIdForFailure },
-          data: { lastError: 'on_chain_transaction_failed' },
-        });
-      }
-      return {
-        ok: false,
-        response: NextResponse.json(
-          { error: 'on_chain_transaction_failed' },
-          { status: 502 }
-        ),
-      };
-    }
-  }
-
-  if (!confirmedHash) {
-    if (chainTx.transaction_status === 'failed') {
-      if (withdrawalIdForFailure) {
-        await prisma.withdrawal.update({
-          where: { id: withdrawalIdForFailure },
-          data: {
-            lastError: 'on_chain_transaction_failed',
-          },
-        });
-      }
-      return {
-        ok: false,
-        response: NextResponse.json(
-          { error: 'on_chain_transaction_failed' },
-          { status: 502 }
-        ),
-      };
-    }
-
-    if (chainTx.transaction_status === 'pending') {
-      return {
-        ok: false,
-        response: NextResponse.json(
-          {
-            error: TRANSACTION_PENDING_ERROR,
-            transaction_status: 'pending',
-          },
-          { status: 409 }
-        ),
-      };
-    }
-
-    return {
-      ok: false,
-      response: NextResponse.json(
-        {
-          error: TRANSACTION_NOT_READY_ERROR,
-          transaction_status: chainTx.transaction_status,
-        },
-        { status: 409 }
-      ),
-    };
-  }
-
-  return { ok: true, confirmedHash };
 }
 
 export async function POST(req: NextRequest) {
@@ -269,10 +145,6 @@ export async function POST(req: NextRequest) {
       typeof body.referenceId === 'string' ? body.referenceId.trim() : '';
     const transactionId =
       typeof body.transactionId === 'string' ? body.transactionId.trim() : '';
-    const txHashFromClient =
-      typeof body.txHash === 'string' && body.txHash.trim()
-        ? body.txHash.trim()
-        : null;
     const idFrontDataUrl =
       typeof body.idFrontDataUrl === 'string' ? body.idFrontDataUrl : '';
     const idBackDataUrl =
@@ -298,19 +170,8 @@ export async function POST(req: NextRequest) {
     }
 
     let complianceAttachments: Attachment[] | undefined;
-    let appIdForWorld: string | null = null;
 
     if (sendEmail) {
-      appIdForWorld = process.env.NEXT_PUBLIC_APP_ID?.trim() ?? null;
-      if (!appIdForWorld) {
-        return NextResponse.json(
-          {
-            error:
-              'NEXT_PUBLIC_APP_ID is required to confirm on-chain payment before email',
-          },
-          { status: 500 }
-        );
-      }
       if (!idFrontDataUrl || !idBackDataUrl) {
         return NextResponse.json(
           {
@@ -361,75 +222,25 @@ export async function POST(req: NextRequest) {
         );
       }
 
-      if (sendEmail) {
-        if (!appIdForWorld) {
-          return NextResponse.json(
-            { error: 'server_misconfigured' },
-            { status: 500 }
-          );
-        }
-        const chain = await resolveConfirmedHashFromWorld(
-          transactionId,
-          referenceId,
-          appIdForWorld,
-          null
-        );
-        if (!chain.ok) {
-          return chain.response;
-        }
-
-        try {
-          await prisma.withdrawal.create({
-            data: buildWithdrawalCreateData(
-              referenceId,
-              walletAddress,
-              draft,
-              transactionId,
-              chain.confirmedHash,
-              quote
-            ),
-          });
-          createdThisRequest = true;
-        } catch (e) {
-          if (
-            e instanceof Prisma.PrismaClientKnownRequestError &&
-            e.code === 'P2002'
-          ) {
-            createdThisRequest = false;
-          } else {
-            throw e;
-          }
-        }
-      } else {
-        if (!txHashFromClient) {
-          return NextResponse.json(
-            {
-              error: 'txHash is required when compliance email is not configured',
-            },
-            { status: 400 }
-          );
-        }
-        try {
-          await prisma.withdrawal.create({
-            data: buildWithdrawalCreateData(
-              referenceId,
-              walletAddress,
-              draft,
-              transactionId,
-              txHashFromClient,
-              quote
-            ),
-          });
-          createdThisRequest = true;
-        } catch (e) {
-          if (
-            e instanceof Prisma.PrismaClientKnownRequestError &&
-            e.code === 'P2002'
-          ) {
-            createdThisRequest = false;
-          } else {
-            throw e;
-          }
+      try {
+        await prisma.withdrawal.create({
+          data: buildWithdrawalCreateData(
+            referenceId,
+            walletAddress,
+            draft,
+            transactionId,
+            quote
+          ),
+        });
+        createdThisRequest = true;
+      } catch (e) {
+        if (
+          e instanceof Prisma.PrismaClientKnownRequestError &&
+          e.code === 'P2002'
+        ) {
+          createdThisRequest = false;
+        } else {
+          throw e;
         }
       }
 
@@ -452,15 +263,12 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ ok: true, idempotent: true });
     }
 
-    const txHashForSubmitted = sendEmail ? null : txHashFromClient;
-
     if (!createdThisRequest) {
       if (withdrawal.status === 'PENDING_PAYMENT') {
         await prisma.withdrawal.update({
           where: { id: withdrawal.id },
           data: {
             transactionId,
-            txHash: txHashForSubmitted,
             status: 'SUBMITTED',
             lastError: null,
           },
@@ -470,7 +278,6 @@ export async function POST(req: NextRequest) {
           where: { id: withdrawal.id },
           data: {
             transactionId,
-            ...(txHashForSubmitted ? { txHash: txHashForSubmitted } : {}),
             lastError: null,
           },
         });
@@ -486,42 +293,7 @@ export async function POST(req: NextRequest) {
       where: { id: withdrawal.id },
     });
 
-    let rowForEmail = withdrawal;
-
-    if (sendEmail) {
-      const appId = appIdForWorld;
-      if (!appId) {
-        return NextResponse.json(
-          { error: 'server_misconfigured' },
-          { status: 500 }
-        );
-      }
-
-      if (!withdrawal.txHash?.trim()) {
-        const chain = await resolveConfirmedHashFromWorld(
-          transactionId,
-          referenceId,
-          appId,
-          withdrawal.id
-        );
-        if (!chain.ok) {
-          return chain.response;
-        }
-
-        await prisma.withdrawal.update({
-          where: { id: withdrawal.id },
-          data: {
-            txHash: chain.confirmedHash,
-          },
-        });
-
-        rowForEmail = await prisma.withdrawal.findUniqueOrThrow({
-          where: { id: withdrawal.id },
-        });
-      }
-    }
-
-    const emailResult = await sendWithdrawalComplianceEmail(rowForEmail, {
+    const emailResult = await sendWithdrawalComplianceEmail(withdrawal, {
       ...(complianceAttachments?.length
         ? { attachments: complianceAttachments }
         : {}),

@@ -52,7 +52,7 @@ export async function GET() {
       status: w.status,
       displayPhase: withdrawalDisplayPhase({
         status: w.status,
-        txHash: w.txHash,
+        transactionId: w.transactionId,
         lastError: w.lastError,
       }),
       amountWld: w.amountWld.toString(),
