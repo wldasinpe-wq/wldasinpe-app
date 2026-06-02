@@ -19,12 +19,15 @@
  * Examples:
  *   pnpm backfill:tx-hash -- --reference abc123...
  *   pnpm backfill:tx-hash -- --reference abc123... --hash 0x1d63...
+ *
+ * Read-only lookup (prints hash + explorer URL):
+ *   pnpm lookup:tx-hash -- --reference <referenceId>
  */
 
 import { PrismaClient } from '@prisma/client';
 
 import { getWorldchainTxOutcome } from '../src/lib/wld-onchain';
-import { fetchMinikitPaymentTransaction } from '../src/lib/world-minikit-transaction';
+import { resolveTxHashFromMinikitPayment } from '../src/lib/resolve-minikit-tx-hash';
 
 const prisma = new PrismaClient();
 
@@ -107,34 +110,15 @@ async function resolveHash(args: {
   const tid = args.transactionId?.trim();
   if (!tid) {
     throw new Error(
-      'Row has no transaction_id. Pass --hash 0x... from Worldscan (receipt must succeed unless --no-verify).',
+      'Row has no transaction_id. Pass --hash 0x... from Worldscan, or run pnpm lookup:tx-hash with --transaction-id.',
     );
   }
 
-  const chainTx = await fetchMinikitPaymentTransaction(tid, args.appId);
-  if (!chainTx) {
-    throw new Error(
-      'World Get Transaction returned 404 for this transaction_id.',
-    );
-  }
-
-  const apiHash = chainTx.transaction_hash?.trim() ?? '';
-  if (chainTx.transaction_status === 'mined' && apiHash) {
-    return apiHash;
-  }
-  if (apiHash) {
-    const o = await getWorldchainTxOutcome(apiHash);
-    if (o === 'success') {
-      return apiHash;
-    }
-    throw new Error(
-      `World returned hash but receipt is "${o}". Wait or pass --hash from explorer.`,
-    );
-  }
-
-  throw new Error(
-    'No transaction_hash from World yet. Pass --hash 0x... from Worldscan.',
-  );
+  const resolved = await resolveTxHashFromMinikitPayment({
+    transactionId: tid,
+    appId: args.appId,
+  });
+  return resolved.transactionHash;
 }
 
 async function main() {
