@@ -14,11 +14,11 @@ const DECIMALS = 18;
 const WLD_WORLDCHAIN_DEFAULT =
   '0x2cFc85d8E48F8EAB294be644d9E25C3030863003' as const;
 
-/** Public RPCs — Thirdweb/dRPC first; Alchemy `/public` often rate-limits server IPs. */
+/** Public RPCs — Alchemy `/public` first (World docs default); fallbacks if slow or rate-limited. */
 const WORLDCHAIN_PUBLIC_RPCS: readonly string[] = [
+  'https://worldchain-mainnet.g.alchemy.com/public',
   'https://480.rpc.thirdweb.com',
   'https://worldchain.drpc.org',
-  'https://worldchain-mainnet.g.alchemy.com/public',
 ];
 
 function getWldTokenAddress(): `0x${string}` {
