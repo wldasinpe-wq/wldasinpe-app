@@ -26,8 +26,8 @@ declare module 'next-auth' {
 // Auth configuration for Wallet Auth based sessions
 // For more information on each option (and a full list of options) go to
 // https://authjs.dev/getting-started/authentication/credentials
-export const { handlers, signIn, signOut, auth } = NextAuth({
-  secret: process.env.NEXTAUTH_SECRET,
+export const { handlers, auth } = NextAuth({
+  secret: process.env.AUTH_SECRET ?? process.env.NEXTAUTH_SECRET,
   session: { strategy: 'jwt' },
   providers: [
     Credentials({
@@ -37,37 +37,45 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
         signedNonce: { label: 'Signed Nonce', type: 'text' },
         finalPayloadJson: { label: 'Final Payload', type: 'text' },
       },
-      // @ts-expect-error TODO
-      authorize: async ({
-        nonce,
-        signedNonce,
-        finalPayloadJson,
-      }: {
-        nonce: string;
-        signedNonce: string;
-        finalPayloadJson: string;
-      }) => {
+      authorize: async (credentials) => {
+        if (!credentials) return null;
+        const { nonce, signedNonce, finalPayloadJson } = credentials;
+        if (
+          typeof nonce !== 'string' ||
+          typeof signedNonce !== 'string' ||
+          typeof finalPayloadJson !== 'string'
+        ) {
+          return null;
+        }
+
         const expectedSignedNonce = hashNonce({ nonce });
 
         if (signedNonce !== expectedSignedNonce) {
-          console.log('Invalid signed nonce');
           return null;
         }
 
-        const finalPayload: MiniAppWalletAuthSuccessPayload =
-          JSON.parse(finalPayloadJson);
+        let finalPayload: MiniAppWalletAuthSuccessPayload;
+        try {
+          finalPayload = JSON.parse(
+            finalPayloadJson
+          ) as MiniAppWalletAuthSuccessPayload;
+        } catch {
+          return null;
+        }
         const result = await verifySiweMessage(finalPayload, nonce);
 
         if (!result.isValid || !result.siweMessageData.address) {
-          console.log('Invalid final payload');
           return null;
         }
         // Optionally, fetch the user info from your own database
-        const userInfo = await MiniKit.getUserInfo(finalPayload.address);
+        const address = result.siweMessageData.address;
+        const userInfo = await MiniKit.getUserInfo(address);
 
         return {
-          id: finalPayload.address,
-          ...userInfo,
+          id: address,
+          walletAddress: userInfo.walletAddress || address,
+          username: userInfo.username ?? '',
+          profilePictureUrl: userInfo.profilePictureUrl ?? '',
         };
       },
     }),
@@ -76,7 +84,7 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
     async jwt({ token, user }) {
       if (user) {
         token.userId = user.id;
-        token.walletAddress = user.walletAddress;
+        token.walletAddress = user.walletAddress || user.id;
         token.username = user.username;
         token.profilePictureUrl = user.profilePictureUrl;
       }
@@ -86,7 +94,14 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
     session: async ({ session, token }) => {
       if (token.userId) {
         session.user.id = token.userId as string;
-        session.user.walletAddress = token.address as string;
+        const wid = token.walletAddress as string | undefined;
+        const uid = token.userId as string;
+        session.user.walletAddress =
+          wid && /^0x[a-fA-F0-9]{40}$/i.test(wid)
+            ? wid
+            : /^0x[a-fA-F0-9]{40}$/i.test(uid)
+              ? uid
+              : (wid ?? '');
         session.user.username = token.username as string;
         session.user.profilePictureUrl = token.profilePictureUrl as string;
       }

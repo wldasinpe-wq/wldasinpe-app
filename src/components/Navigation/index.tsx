@@ -2,7 +2,9 @@
 
 import { TabItem, Tabs } from '@worldcoin/mini-apps-ui-kit-react';
 import { Bank, Home, User } from 'iconoir-react';
-import { useState } from 'react';
+import { hapticSelection } from '@/lib/haptics';
+import { usePathname, useRouter } from 'next/navigation';
+import { useCallback, useMemo } from 'react';
 
 /**
  * This component uses the UI Kit to navigate between pages
@@ -12,14 +14,31 @@ import { useState } from 'react';
  */
 
 export const Navigation = () => {
-  const [value, setValue] = useState('home');
+  const pathname = usePathname() ?? '';
+  const router = useRouter();
+
+  const value = useMemo(() => {
+    if (pathname.startsWith('/wallet')) return 'wallet';
+    if (pathname.startsWith('/profile')) return 'profile';
+    return 'home';
+  }, [pathname]);
+
+  const onValueChange = useCallback(
+    (next: string) => {
+      if (next === value) return;
+      hapticSelection();
+      if (next === 'home') router.push('/home');
+      else if (next === 'wallet') router.push('/wallet');
+      else if (next === 'profile') router.push('/profile');
+    },
+    [router, value],
+  );
 
   return (
-    <Tabs value={value} onValueChange={setValue}>
-      <TabItem value="home" icon={<Home />} label="Home" />
-      {/* // TODO: These currently don't link anywhere */}
-      <TabItem value="wallet" icon={<Bank />} label="Wallet" />
-      <TabItem value="profile" icon={<User />} label="Profile" />
+    <Tabs value={value} onValueChange={onValueChange}>
+      <TabItem value="home" icon={<Home />} label="Retiros" />
+      <TabItem value="wallet" icon={<Bank />} label="Billetera" />
+      <TabItem value="profile" icon={<User />} label="Perfil" />
     </Tabs>
   );
 };
