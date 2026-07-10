@@ -127,14 +127,12 @@ export const PayStep = () => {
       let firstName = '';
       let lastName = '';
       let idNumber = '';
-      let accountNumber = '';
 
       try {
         const profile = profileRaw
           ? (JSON.parse(profileRaw) as {
               nombreCliente?: string;
               identificacion?: string;
-              cuentaInterna?: string;
             })
           : null;
         if (profile?.nombreCliente) {
@@ -143,7 +141,6 @@ export const PayStep = () => {
           lastName = split.lastName;
         }
         idNumber = profile?.identificacion ?? '';
-        accountNumber = profile?.cuentaInterna ?? '';
       } catch {
         /* ignore */
       }
@@ -161,7 +158,6 @@ export const PayStep = () => {
           firstName,
           lastName,
           idNumber,
-          accountNumber,
           contactEmail: contactEmail.trim() || null,
           idFrontSubmitted: Boolean(idFrontDataUrl),
           idBackSubmitted: Boolean(idBackDataUrl),

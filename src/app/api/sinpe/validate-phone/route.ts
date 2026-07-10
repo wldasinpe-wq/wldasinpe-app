@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { auth } from '@/auth';
 import {
-  fetchRidiviPhoneInfo,
+  fetchRidiviPhoneData,
   fetchRidiviToken,
   normalizeSinpePhoneDigits,
 } from '@/lib/ridivi/sinpe';
@@ -54,7 +54,7 @@ export async function POST(req: NextRequest) {
   const phoneDigits = digits;
 
   async function validateWithToken(token: string) {
-    return fetchRidiviPhoneInfo(ridiviBaseUrl, token, phoneDigits);
+    return fetchRidiviPhoneData(ridiviBaseUrl, token, phoneDigits);
   }
 
   try {
@@ -72,20 +72,9 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    if (!info.Activo) {
-      return NextResponse.json(
-        {
-          error:
-            'Esta cuenta SINPE Móvil no está activa. Verificá con tu banco.',
-        },
-        { status: 422 }
-      );
-    }
-
     return NextResponse.json({
       nombreCliente: info.NombreCliente,
       identificacion: info.Identificacion,
-      cuentaInterna: info.CuentaInterna,
       numTelefono: info.NumTelefono,
     });
   } catch (e) {

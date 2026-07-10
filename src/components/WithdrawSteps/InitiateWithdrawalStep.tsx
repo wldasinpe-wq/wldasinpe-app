@@ -111,14 +111,9 @@ export const InitiateWithdrawalStep = () => {
         ? (JSON.parse(profileRaw) as {
             nombreCliente?: string;
             identificacion?: string;
-            cuentaInterna?: string;
           })
         : null;
-      if (
-        !profile?.nombreCliente ||
-        !profile.identificacion ||
-        !profile.cuentaInterna
-      ) {
+      if (!profile?.nombreCliente || !profile.identificacion) {
         throw new Error('missing profile');
       }
       const { firstName, lastName } = splitLegalName(profile.nombreCliente);
@@ -130,7 +125,6 @@ export const InitiateWithdrawalStep = () => {
         firstName,
         lastName,
         idNumber: profile.identificacion,
-        accountNumber: profile.cuentaInterna,
         idFrontSubmitted: Boolean(idFront),
         idBackSubmitted: Boolean(idBack),
         contactEmail: emailStored,

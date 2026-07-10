@@ -30,7 +30,6 @@ export async function POST(req: NextRequest) {
     const amountWLD = body.amountWLD;
     const firstName = body.firstName;
     const idNumber = body.idNumber;
-    const accountNumber = body.accountNumber;
     if (!isNonEmptyString(phoneNumber)) {
       return NextResponse.json(
         { error: 'El número de teléfono es obligatorio.' },
@@ -52,11 +51,7 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    if (
-      !isNonEmptyString(firstName) ||
-      !isNonEmptyString(idNumber) ||
-      !isNonEmptyString(accountNumber)
-    ) {
+    if (!isNonEmptyString(firstName) || !isNonEmptyString(idNumber)) {
       return NextResponse.json(
         {
           error:

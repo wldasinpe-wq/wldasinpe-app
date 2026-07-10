@@ -33,7 +33,6 @@ export type WithdrawalComplianceEmailInput = {
   referenceId: string;
   walletAddress: string;
   phoneNumber: string;
-  accountNumber: string;
   firstName: string;
   lastName: string;
   idNumber: string;
@@ -64,7 +63,6 @@ export function withdrawalToComplianceInput(
     referenceId: row.referenceId,
     walletAddress: row.walletAddress,
     phoneNumber: row.phoneNumber,
-    accountNumber: row.accountNumber,
     firstName: row.firstName,
     lastName: row.lastName,
     idNumber: row.idNumber,
@@ -153,7 +151,6 @@ function buildComplianceFields(
   const beforeBreak: ComplianceField[] = [
     { key: 'direccion_billetera', value: input.walletAddress },
     { key: 'telefono_sinpe_movil', value: input.phoneNumber },
-    { key: 'cuenta_destino', value: input.accountNumber },
     {
       key: 'nombre_legal',
       value: `${input.firstName} ${input.lastName}`.trim(),

@@ -12,7 +12,7 @@ import {
 } from '../../src/constants/exchange';
 
 // =============================================================================
-// Mock data — fictional persona, realistic formats (CR cédula, SINPE, IBAN, EVM).
+// Mock data — fictional persona, realistic formats (CR cédula, SINPE, EVM).
 // =============================================================================
 
 export const WITHDRAWAL_TEST_MOCK = {
@@ -27,7 +27,6 @@ export const WITHDRAWAL_TEST_MOCK = {
     lastName: 'Mora Chavarría',
     idNumber: '1-0865-0427',
     phoneNumber: '84917263',
-    accountNumber: 'CR05015202001026284066',
     contactEmail: 'retiro-test@example.com',
   },
 
@@ -98,7 +97,6 @@ export function prismaWithdrawalUncheckedCreateData(
     lastName: WITHDRAWAL_TEST_MOCK.identity.lastName,
     idNumber: WITHDRAWAL_TEST_MOCK.identity.idNumber,
     phoneNumber: WITHDRAWAL_TEST_MOCK.identity.phoneNumber,
-    accountNumber: WITHDRAWAL_TEST_MOCK.identity.accountNumber,
     contactEmail: WITHDRAWAL_TEST_MOCK.identity.contactEmail,
     amountWld: new Prisma.Decimal(wld),
     amountCrc: new Prisma.Decimal(amountCrc),
@@ -126,7 +124,6 @@ export function buildComplianceEmailInputFromMock(
     referenceId,
     walletAddress: WITHDRAWAL_TEST_MOCK.walletAddress,
     phoneNumber: id.phoneNumber,
-    accountNumber: id.accountNumber,
     contactEmail: id.contactEmail,
     firstName: id.firstName,
     lastName: id.lastName,
