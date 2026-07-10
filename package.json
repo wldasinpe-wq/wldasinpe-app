@@ -20,6 +20,7 @@
     "db:migrate:local": "pnpm run db:migrate",
     "test:db-withdrawal": "tsx --env-file=.env.local scripts/test-withdrawal-db.ts",
     "test:email-compliance": "tsx --env-file=.env.local scripts/test-email-compliance.ts",
+    "test:sinpe-wiring": "tsx --env-file=.env.development.local scripts/test-sinpe-wiring.ts",
     "backfill:tx-hash": "tsx --env-file=.env.local scripts/backfill-withdrawal-tx-hash.ts",
     "lookup:tx-hash": "tsx --env-file=.env.local scripts/lookup-tx-hash.ts",
     "query:wld-prices": "tsx --env-file=.env.local scripts/query-world-wld-prices.ts"

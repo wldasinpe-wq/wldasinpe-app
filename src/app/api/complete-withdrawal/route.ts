@@ -35,7 +35,6 @@ type DraftWithdrawal = {
   firstName: string;
   lastName: string;
   idNumber: string;
-  accountNumber: string;
   contactEmail: string | null;
   idFrontSubmitted: boolean;
   idBackSubmitted: boolean;
@@ -49,7 +48,6 @@ function parseDraftWithdrawal(
   const firstName = body.firstName;
   const lastNameRaw = body.lastName;
   const idNumber = body.idNumber;
-  const accountNumber = body.accountNumber;
   const contactEmailRaw = body.contactEmail;
   const contactEmail =
     typeof contactEmailRaw === 'string' && contactEmailRaw.trim()
@@ -59,8 +57,7 @@ function parseDraftWithdrawal(
   if (
     !isNonEmptyString(phoneNumber) ||
     !isNonEmptyString(firstName) ||
-    !isNonEmptyString(idNumber) ||
-    !isNonEmptyString(accountNumber)
+    !isNonEmptyString(idNumber)
   ) {
     return { ok: false };
   }
@@ -82,7 +79,6 @@ function parseDraftWithdrawal(
       firstName: firstName.trim(),
       lastName,
       idNumber: idNumber.trim(),
-      accountNumber: accountNumber.trim(),
       contactEmail,
       idFrontSubmitted: Boolean(body.idFrontSubmitted),
       idBackSubmitted: Boolean(body.idBackSubmitted),
@@ -108,7 +104,6 @@ function buildWithdrawalCreateData(
     lastName: draft.lastName,
     idNumber: draft.idNumber,
     phoneNumber: draft.phoneNumber,
-    accountNumber: draft.accountNumber,
     amountWld: new Prisma.Decimal(draft.amount),
     amountCrc: new Prisma.Decimal(conversion.netCrc),
     exchangeRate: new Prisma.Decimal(quote.wldToCrc),
@@ -207,7 +202,7 @@ export async function POST(req: NextRequest) {
           {
             error: 'draft_withdrawal_required',
             message:
-              'Include phoneNumber, amountWLD, firstName, lastName, idNumber, accountNumber, idFrontSubmitted, idBackSubmitted, contactEmail (optional).',
+              'Include phoneNumber, amountWLD, firstName, lastName, idNumber, idFrontSubmitted, idBackSubmitted, contactEmail (optional).',
           },
           { status: 400 }
         );

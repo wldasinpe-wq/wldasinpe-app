@@ -54,7 +54,7 @@ model Withdrawal {
   lastName      String @map("last_name")
   idNumber      String @map("id_number")
   phoneNumber   String @map("phone_number")
-  accountNumber String @map("account_number")
+  accountNumber String? @map("account_number")
   /// User-provided contact email for this withdrawal (compliance / follow-up).
   contactEmail  String? @map("contact_email")
 

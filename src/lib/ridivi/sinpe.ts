@@ -1,13 +1,12 @@
 const TOKEN_PATH = '/v5/auth/token';
-const PHONE_INFO_PATH = '/v5/sinpe/phoneInfo';
+const PHONE_DATA_PATH = '/v5/sinpe/getPhoneData';
 
-type RidiviPhoneInfo = {
+type RidiviPhoneData = {
   IdMonedero: number;
   CodEntidad: number;
   Identificacion: string;
   NombreCliente: string;
   NumTelefono: number;
-  CuentaInterna: string;
   Activo: boolean;
   FechaRegistro: string;
   limiteEntrante: number;
@@ -57,18 +56,18 @@ export async function fetchRidiviToken(
   return token;
 }
 
-export async function fetchRidiviPhoneInfo(
+export async function fetchRidiviPhoneData(
   baseUrl: string,
   bearerToken: string,
-  numTelefono: string
-): Promise<RidiviPhoneInfo> {
-  const res = await fetch(joinUrl(baseUrl, PHONE_INFO_PATH), {
+  phone: string
+): Promise<RidiviPhoneData> {
+  const res = await fetch(joinUrl(baseUrl, PHONE_DATA_PATH), {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
       Authorization: `Bearer ${bearerToken}`,
     },
-    body: JSON.stringify({ NumTelefono: numTelefono }),
+    body: JSON.stringify({ phone }),
   });
 
   const text = await res.text();
@@ -76,20 +75,20 @@ export async function fetchRidiviPhoneInfo(
   try {
     data = text ? JSON.parse(text) : {};
   } catch {
-    throw new Error('Ridivi phoneInfo: invalid JSON response');
+    throw new Error('Ridivi getPhoneData: invalid JSON response');
   }
 
   if (!res.ok) {
     const err = data as RidiviErrorBody;
     const e = new Error(
-      err.title || err.detail || `Ridivi phoneInfo failed (${res.status})`
+      err.title || err.detail || `Ridivi getPhoneData failed (${res.status})`
     );
     (e as Error & { status: number; ridiviCode?: string }).status = res.status;
     (e as Error & { ridiviCode?: string }).ridiviCode = err.code;
     throw e;
   }
 
-  return data as RidiviPhoneInfo;
+  return data as RidiviPhoneData;
 }
 
 /** 8 digits only for Ridivi API */

@@ -1,6 +1,6 @@
 /** sessionStorage keys for SINPE withdrawal flow */
 export const SINPE_SESSION_PHONE = 'sinpe_phone';
-/** JSON: { nombreCliente, identificacion, cuentaInterna } from Ridivi phoneInfo */
+/** JSON: { nombreCliente, identificacion } from Ridivi getPhoneData */
 export const SINPE_SESSION_PROFILE = 'sinpe_ridi_profile';
 /** Normalized (trim + lowercase) contact email for compliance records */
 export const SINPE_SESSION_CONTACT_EMAIL = 'sinpe_contact_email';

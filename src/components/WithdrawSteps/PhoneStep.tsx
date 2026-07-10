@@ -92,7 +92,6 @@ export const PhoneStep = () => {
         error?: string;
         nombreCliente?: string;
         identificacion?: string;
-        cuentaInterna?: string;
       };
 
       if (!res.ok) {
@@ -111,7 +110,6 @@ export const PhoneStep = () => {
         JSON.stringify({
           nombreCliente: data.nombreCliente,
           identificacion: data.identificacion,
-          cuentaInterna: data.cuentaInterna,
         })
       );
 

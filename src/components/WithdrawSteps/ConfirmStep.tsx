@@ -14,7 +14,6 @@ import { hapticPrimary } from '@/lib/haptics';
 type SinpeProfile = {
   nombreCliente: string;
   identificacion: string;
-  cuentaInterna: string;
 };
 
 function parseProfile(raw: string | null): SinpeProfile | null {
@@ -23,13 +22,11 @@ function parseProfile(raw: string | null): SinpeProfile | null {
     const o = JSON.parse(raw) as Partial<SinpeProfile>;
     if (
       typeof o.nombreCliente === 'string' &&
-      typeof o.identificacion === 'string' &&
-      typeof o.cuentaInterna === 'string'
+      typeof o.identificacion === 'string'
     ) {
       return {
         nombreCliente: o.nombreCliente,
         identificacion: o.identificacion,
-        cuentaInterna: o.cuentaInterna,
       };
     }
   } catch {
@@ -107,13 +104,6 @@ export const ConfirmStep = () => {
           <div className="text-xs text-gray-500 mb-1">Identificación</div>
           <div className="text-base text-gray-900 break-all">
             {profile.identificacion}
-          </div>
-        </div>
-
-        <div>
-          <div className="text-xs text-gray-500 mb-1">Cuenta interna (IBAN)</div>
-          <div className="text-sm text-gray-900 break-all font-mono">
-            {profile.cuentaInterna}
           </div>
         </div>
       </div>
