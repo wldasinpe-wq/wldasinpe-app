@@ -8,8 +8,6 @@
  * so each run gets a fresh idempotency key in Resend and you can tell test sends apart.
  * Production uses only the server-generated reference from initiate-payment (no `_email_` suffix).
  *
- * Attaches repo root `test-image.jpeg` twice as cedula-frente / cedula-reverso (dev placeholder).
- *
  * Usage:
  *   pnpm test:email-compliance
  *
@@ -18,10 +16,6 @@
  *
  * Recipient is fixed to wldasinpe@gmail.com (not COMPLIANCE_EMAIL_TO).
  */
-
-import { readFileSync } from 'node:fs';
-import { dirname, join } from 'node:path';
-import { fileURLToPath } from 'node:url';
 
 import { sendWithdrawalComplianceEmailFromInput } from '../src/lib/email/send-withdrawal-compliance';
 import {
@@ -44,9 +38,6 @@ async function main() {
   const referenceId = `${WITHDRAWAL_TEST_MOCK.referenceId}_email_${Date.now().toString(36)}`;
   const input = buildComplianceEmailInputFromMock(referenceId);
 
-  const repoRoot = join(dirname(fileURLToPath(import.meta.url)), '..');
-  const sampleJpeg = readFileSync(join(repoRoot, 'test-image.jpeg'));
-
   console.log('Sending compliance email only (no DB).');
   console.log('  to:  ', TEST_EMAIL_TO);
   console.log('  from:', from);
@@ -54,24 +45,11 @@ async function main() {
   console.log(
     '  (Sufijo _email_<base36>: evita colisiones de idempotencia entre corridas de prueba.)'
   );
-  console.log('  attachments: test-image.jpeg ×2 (frente / reverso)');
 
   const result = await sendWithdrawalComplianceEmailFromInput(input, {
     to: TEST_EMAIL_TO,
     from,
     persistAudit: false,
-    attachments: [
-      {
-        filename: 'cedula-frente.jpg',
-        content: sampleJpeg,
-        contentType: 'image/jpeg',
-      },
-      {
-        filename: 'cedula-reverso.jpg',
-        content: sampleJpeg,
-        contentType: 'image/jpeg',
-      },
-    ],
   });
 
   if (result.sent) {

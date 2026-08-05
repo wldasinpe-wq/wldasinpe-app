@@ -249,7 +249,7 @@ export const AmountStep = () => {
     hapticSuccess();
     setError('');
     sessionStorage.setItem(SINPE_SESSION_AMOUNT_WLD, amountWLD.trim());
-    router.push('/withdraw/id');
+    router.push('/withdraw/review');
   };
 
   const wldToCrc = quote?.wldToCrc ?? 0;
@@ -276,7 +276,7 @@ export const AmountStep = () => {
   return (
     <div className="mx-auto flex h-full min-h-0 w-full max-w-md flex-col">
       <div className="shrink-0 space-y-4 px-1 pt-2">
-        <StepProgress currentStep={4} totalSteps={7} />
+        <StepProgress currentStep={4} totalSteps={6} />
         <StepHeader
           title="Monto a retirar"
           description="WLD a tu cuenta SINPE"

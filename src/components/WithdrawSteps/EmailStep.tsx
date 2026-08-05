@@ -54,7 +54,7 @@ export const EmailStep = () => {
     hapticSuccess();
     setError('');
     sessionStorage.setItem(SINPE_SESSION_CONTACT_EMAIL, normalized);
-    router.push('/withdraw/id');
+    router.push('/withdraw/amount');
   };
 
   if (isLoading) {
@@ -67,7 +67,7 @@ export const EmailStep = () => {
 
   return (
     <div className="grid w-full max-w-md gap-8">
-      <StepProgress currentStep={3} totalSteps={7} />
+      <StepProgress currentStep={3} totalSteps={6} />
 
       <StepHeader
         title="Tu correo electrónico"

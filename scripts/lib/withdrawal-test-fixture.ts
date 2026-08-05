@@ -37,11 +37,6 @@ export const WITHDRAWAL_TEST_MOCK = {
     commissionCrc: null as number | null,
   },
 
-  idCapture: {
-    frontSubmitted: true,
-    backSubmitted: true,
-  },
-
   chain: {
     transactionId:
       'wld_txn_9f2c4a8e1d0b7f63a5e842c1d0b9a7f4e2c8d6b0a4e1f3c5d7b9a0e2f4c6d8',
@@ -84,11 +79,6 @@ export function prismaWithdrawalUncheckedCreateData(
 ): Prisma.WithdrawalUncheckedCreateInput {
   const wld = WITHDRAWAL_TEST_MOCK.amounts.amountWld;
   const { amountCrc, exchangeRate, commissionCrc } = resolveAmountsFromMock(wld);
-  const idSubmittedAt =
-    WITHDRAWAL_TEST_MOCK.idCapture.frontSubmitted &&
-    WITHDRAWAL_TEST_MOCK.idCapture.backSubmitted
-      ? new Date()
-      : null;
 
   return {
     referenceId,
@@ -102,9 +92,6 @@ export function prismaWithdrawalUncheckedCreateData(
     amountCrc: new Prisma.Decimal(amountCrc),
     exchangeRate: new Prisma.Decimal(exchangeRate),
     commissionCrc: new Prisma.Decimal(commissionCrc),
-    idFrontSubmitted: WITHDRAWAL_TEST_MOCK.idCapture.frontSubmitted,
-    idBackSubmitted: WITHDRAWAL_TEST_MOCK.idCapture.backSubmitted,
-    idSubmittedAt,
     status: 'PENDING_PAYMENT',
   };
 }
