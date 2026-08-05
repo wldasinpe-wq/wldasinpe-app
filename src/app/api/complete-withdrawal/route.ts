@@ -2,10 +2,7 @@ import { Prisma } from '@prisma/client';
 import { NextRequest, NextResponse } from 'next/server';
 
 import { auth } from '@/auth';
-import {
-  calculateConversionFromQuote,
-  LIMITS,
-} from '@/constants/exchange';
+import { estimateDisplayConversion, LIMITS } from '@/constants/exchange';
 import { getExchangeQuote } from '@/lib/exchange/get-quote';
 import type { ExchangeQuote } from '@/lib/exchange/types';
 import { sendWithdrawalComplianceEmail } from '@/lib/email/send-withdrawal-compliance';
@@ -87,7 +84,7 @@ function buildWithdrawalCreateData(
   transactionId: string,
   quote: ExchangeQuote
 ) {
-  const conversion = calculateConversionFromQuote(quote, draft.amount);
+  const conversion = estimateDisplayConversion(quote, draft.amount);
 
   return {
     referenceId,
@@ -104,7 +101,6 @@ function buildWithdrawalCreateData(
       const d = new Date(quote.fetchedAt);
       return Number.isNaN(d.getTime()) ? null : d;
     })(),
-    commissionCrc: new Prisma.Decimal(conversion.fee),
     contactEmail: draft.contactEmail,
     transactionId,
     txHash: null,

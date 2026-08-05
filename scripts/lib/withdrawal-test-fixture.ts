@@ -7,7 +7,7 @@ import { Prisma } from '@prisma/client';
 
 import type { WithdrawalComplianceEmailInput } from '../../src/lib/email/compliance-content';
 import {
-  calculateConversionFromQuote,
+  estimateDisplayConversion,
   getEnvExchangeQuote,
 } from '../../src/constants/exchange';
 
@@ -34,7 +34,6 @@ export const WITHDRAWAL_TEST_MOCK = {
     amountWld: 12.75,
     amountCrcNet: null as number | null,
     exchangeRateCrcPerWld: null as number | null,
-    commissionCrc: null as number | null,
   },
 
   chain: {
@@ -47,23 +46,17 @@ export const WITHDRAWAL_TEST_MOCK = {
 
 function resolveAmountsFromMock(wld: number) {
   const m = WITHDRAWAL_TEST_MOCK.amounts;
-  if (
-    m.amountCrcNet != null &&
-    m.exchangeRateCrcPerWld != null &&
-    m.commissionCrc != null
-  ) {
+  if (m.amountCrcNet != null && m.exchangeRateCrcPerWld != null) {
     return {
       amountCrc: m.amountCrcNet,
       exchangeRate: m.exchangeRateCrcPerWld,
-      commissionCrc: m.commissionCrc,
     };
   }
   const q = getEnvExchangeQuote();
-  const c = calculateConversionFromQuote(q, wld);
+  const c = estimateDisplayConversion(q, wld);
   return {
     amountCrc: c.netCrc,
     exchangeRate: q.wldToCrc,
-    commissionCrc: c.fee,
   };
 }
 
@@ -78,7 +71,7 @@ export function prismaWithdrawalUncheckedCreateData(
   referenceId: string
 ): Prisma.WithdrawalUncheckedCreateInput {
   const wld = WITHDRAWAL_TEST_MOCK.amounts.amountWld;
-  const { amountCrc, exchangeRate, commissionCrc } = resolveAmountsFromMock(wld);
+  const { amountCrc, exchangeRate } = resolveAmountsFromMock(wld);
 
   return {
     referenceId,
@@ -91,7 +84,6 @@ export function prismaWithdrawalUncheckedCreateData(
     amountWld: new Prisma.Decimal(wld),
     amountCrc: new Prisma.Decimal(amountCrc),
     exchangeRate: new Prisma.Decimal(exchangeRate),
-    commissionCrc: new Prisma.Decimal(commissionCrc),
     status: 'PENDING_PAYMENT',
   };
 }
@@ -104,7 +96,7 @@ export function buildComplianceEmailInputFromMock(
   referenceId: string
 ): WithdrawalComplianceEmailInput {
   const wld = WITHDRAWAL_TEST_MOCK.amounts.amountWld;
-  const { amountCrc, exchangeRate, commissionCrc } = resolveAmountsFromMock(wld);
+  const { amountCrc, exchangeRate } = resolveAmountsFromMock(wld);
   const id = WITHDRAWAL_TEST_MOCK.identity;
 
   return {
@@ -120,7 +112,6 @@ export function buildComplianceEmailInputFromMock(
     exchangeRateCrcPerWld: String(exchangeRate),
     exchangeRateSource: 'env',
     exchangeRateFetchedAt: new Date().toISOString(),
-    commissionCrc: String(commissionCrc),
     transactionId: WITHDRAWAL_TEST_MOCK.chain.transactionId,
   };
 }

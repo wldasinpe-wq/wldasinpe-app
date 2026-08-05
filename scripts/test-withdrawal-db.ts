@@ -101,7 +101,6 @@ async function main() {
               amountWld: row.amountWld.toString(),
               amountCrc: row.amountCrc.toString(),
               exchangeRate: row.exchangeRate.toString(),
-              commissionCrc: row.commissionCrc.toString(),
               createdAt: row.createdAt.toISOString(),
               updatedAt: row.updatedAt.toISOString(),
             },
