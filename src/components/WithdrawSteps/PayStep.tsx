@@ -8,8 +8,6 @@ import { formatCurrency } from '@/constants/exchange';
 import {
   SINPE_SESSION_AMOUNT_WLD,
   SINPE_SESSION_CONTACT_EMAIL,
-  SINPE_SESSION_ID_BACK,
-  SINPE_SESSION_ID_FRONT,
   SINPE_SESSION_PAY_REFERENCE,
   SINPE_SESSION_PHONE,
   SINPE_SESSION_PROFILE,
@@ -52,13 +50,6 @@ function userMessageForCompleteWithdrawalFailure(
   if (code === 'Failed to send compliance email') {
     return 'El pago se confirmó, pero no pudimos enviar el aviso. Tocá Reintentar o escribinos a info@ridivi.com.';
   }
-  if (
-    code.includes('idFrontDataUrl') ||
-    code.includes('ID image') ||
-    code.includes('Invalid or oversized')
-  ) {
-    return 'Faltan o no son válidas las fotos del documento. Volvé al paso de identificación y subilas de nuevo.';
-  }
   if (code === 'referenceId and transactionId are required') {
     return 'Faltan datos del pago. Volvé a firmar la transferencia en World App.';
   }
@@ -75,8 +66,6 @@ function clearWithdrawalSession() {
   sessionStorage.removeItem(SINPE_SESSION_PHONE);
   sessionStorage.removeItem(SINPE_SESSION_PROFILE);
   sessionStorage.removeItem(SINPE_SESSION_CONTACT_EMAIL);
-  sessionStorage.removeItem(SINPE_SESSION_ID_FRONT);
-  sessionStorage.removeItem(SINPE_SESSION_ID_BACK);
   sessionStorage.removeItem(SINPE_SESSION_AMOUNT_WLD);
   sessionStorage.removeItem(SINPE_SESSION_PAY_REFERENCE);
 }
@@ -114,10 +103,6 @@ export const PayStep = () => {
 
   const postCompleteWithdrawal = useCallback(
     async (referenceId: string, transactionId: string) => {
-      const idFrontDataUrl =
-        sessionStorage.getItem(SINPE_SESSION_ID_FRONT) ?? '';
-      const idBackDataUrl =
-        sessionStorage.getItem(SINPE_SESSION_ID_BACK) ?? '';
       const phoneNumber = sessionStorage.getItem(SINPE_SESSION_PHONE) ?? '';
       const amountRaw = sessionStorage.getItem(SINPE_SESSION_AMOUNT_WLD) ?? '';
       const contactEmail =
@@ -151,16 +136,12 @@ export const PayStep = () => {
         body: JSON.stringify({
           referenceId,
           transactionId,
-          idFrontDataUrl,
-          idBackDataUrl,
           phoneNumber,
           amountWLD: parseFloat(amountRaw),
           firstName,
           lastName,
           idNumber,
           contactEmail: contactEmail.trim() || null,
-          idFrontSubmitted: Boolean(idFrontDataUrl),
-          idBackSubmitted: Boolean(idBackDataUrl),
         }),
       });
     },
@@ -316,7 +297,7 @@ export const PayStep = () => {
 
   return (
     <div className="mx-auto grid w-full max-w-md gap-8">
-      <StepProgress currentStep={7} totalSteps={7} />
+      <StepProgress currentStep={6} totalSteps={6} />
 
       <StepHeader
         title="Enviar WLD"

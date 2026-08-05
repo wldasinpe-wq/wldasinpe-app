@@ -5,7 +5,11 @@ import { WldBalanceInline, WldBalancePill } from '@/components/WldBalanceDisplay
 import { HomeWithdrawCta } from '@/components/HomeWithdrawCta';
 import { TopBar } from '@worldcoin/mini-apps-ui-kit-react';
 import { Suspense } from 'react';
-import { formatCurrency } from '@/constants/exchange';
+import {
+  formatCurrency,
+  formatSwapFeePercent,
+  RIDIVI_DISPLAY_FEES,
+} from '@/constants/exchange';
 import { getExchangeQuote } from '@/lib/exchange/get-quote';
 
 export default async function Home() {
@@ -60,7 +64,10 @@ export default async function Home() {
 
         {/* Info */}
         <div className="text-center text-xs text-gray-500 max-w-md space-y-1 border-t border-gray-200 pt-6">
-          <p>Comisión fija: {formatCurrency.CRC(quote.flatFeeCrc)} por transacción</p>
+          <p>
+            Comisiones estimadas: {formatSwapFeePercent(RIDIVI_DISPLAY_FEES.swapFeeBps)}{' '}
+            del cambio + {formatCurrency.USDLabel(RIDIVI_DISPLAY_FEES.flatFeeUsd)} por retiro
+          </p>
           <p>Monto mínimo: 0.1 WLD</p>
         </div>
       </Page.Main>

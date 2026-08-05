@@ -1,11 +1,10 @@
 export type ExchangeQuoteSource = 'world' | 'env';
 
-/** Single snapshot of FX + fee used across UI and withdrawal persistence. */
+/** Single FX snapshot used across UI and withdrawal persistence. */
 export type ExchangeQuote = {
   wldToCrc: number;
   wldToUsd: number;
   usdToCrc: number;
-  flatFeeCrc: number;
   source: ExchangeQuoteSource;
   fetchedAt: string;
 };
@@ -16,4 +15,10 @@ export type ConversionBreakdown = {
   crc: number;
   fee: number;
   netCrc: number;
+};
+
+/** UI-only estimate (Ridivi: swap % + flat USD). Not used for settlement. */
+export type DisplayConversionBreakdown = ConversionBreakdown & {
+  swapFeeCrc: number;
+  flatFeeCrc: number;
 };

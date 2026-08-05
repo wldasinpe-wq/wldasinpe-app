@@ -5,15 +5,15 @@ import { useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
 import { useExchangeQuote } from '@/components/ExchangeRatesProvider';
 import {
-  calculateConversionFromQuote,
+  estimateDisplayConversion,
+  formatSwapFeePercent,
   LIMITS,
+  RIDIVI_DISPLAY_FEES,
   formatCurrency,
 } from '@/constants/exchange';
 import {
   SINPE_SESSION_AMOUNT_WLD,
   SINPE_SESSION_CONTACT_EMAIL,
-  SINPE_SESSION_ID_BACK,
-  SINPE_SESSION_ID_FRONT,
   SINPE_SESSION_PAY_REFERENCE,
   SINPE_SESSION_PHONE,
   SINPE_SESSION_PROFILE,
@@ -47,8 +47,6 @@ export const InitiateWithdrawalStep = () => {
 
     const phone = sessionStorage.getItem(SINPE_SESSION_PHONE);
     const profileRaw = sessionStorage.getItem(SINPE_SESSION_PROFILE);
-    const idFront = sessionStorage.getItem(SINPE_SESSION_ID_FRONT);
-    const idBack = sessionStorage.getItem(SINPE_SESSION_ID_BACK);
     const amountRaw = sessionStorage.getItem(SINPE_SESSION_AMOUNT_WLD);
     const storedEmail = sessionStorage.getItem(SINPE_SESSION_CONTACT_EMAIL);
 
@@ -68,10 +66,6 @@ export const InitiateWithdrawalStep = () => {
     const amount = parseFloat(amountRaw);
     if (Number.isNaN(amount) || amount < LIMITS.MIN_WLD) {
       router.replace('/withdraw/amount');
-      return;
-    }
-    if (!idFront || !idBack) {
-      router.replace('/withdraw/id');
       return;
     }
 
@@ -102,8 +96,6 @@ export const InitiateWithdrawalStep = () => {
     setButtonState('pending');
 
     const profileRaw = sessionStorage.getItem(SINPE_SESSION_PROFILE);
-    const idFront = sessionStorage.getItem(SINPE_SESSION_ID_FRONT);
-    const idBack = sessionStorage.getItem(SINPE_SESSION_ID_BACK);
     let initiateBody: Record<string, string | number | boolean>;
 
     try {
@@ -125,8 +117,6 @@ export const InitiateWithdrawalStep = () => {
         firstName,
         lastName,
         idNumber: profile.identificacion,
-        idFrontSubmitted: Boolean(idFront),
-        idBackSubmitted: Boolean(idBack),
         contactEmail: emailStored,
       };
     } catch {
@@ -233,11 +223,13 @@ export const InitiateWithdrawalStep = () => {
   }
 
   const amountNum = parseFloat(amountWldStr);
-  const conv = calculateConversionFromQuote(quote, amountNum);
+  const display = estimateDisplayConversion(quote, amountNum);
+  const swapFeeLabel = formatSwapFeePercent(RIDIVI_DISPLAY_FEES.swapFeeBps);
+  const flatFeeLabel = formatCurrency.USD(RIDIVI_DISPLAY_FEES.flatFeeUsd);
 
   return (
     <div className="mx-auto grid w-full max-w-md gap-8">
-      <StepProgress currentStep={6} totalSteps={7} />
+      <StepProgress currentStep={5} totalSteps={6} />
 
       <StepHeader
         title="Resumen del retiro"
@@ -287,27 +279,32 @@ export const InitiateWithdrawalStep = () => {
           <div className="space-y-2 border-t border-gray-100 pt-3 text-sm">
             <div className="flex items-baseline justify-between gap-3 tabular-nums text-gray-700">
               <span className="text-gray-500">Bruto aprox. en colones</span>
-              <span>{formatCurrency.CRC(conv.crc)}</span>
+              <span>{formatCurrency.CRC(display.crc)}</span>
             </div>
-            <div className="flex items-baseline justify-between gap-3 tabular-nums text-gray-700">
-              <span className="text-gray-500">Comisión estimada</span>
-              <span>− {formatCurrency.CRC(conv.fee)}</span>
+            <div className="space-y-1.5 border-l border-gray-200 pl-3 text-gray-600">
+              <div className="flex items-baseline justify-between gap-3 tabular-nums">
+                <span className="text-gray-400">Cambio ({swapFeeLabel})</span>
+                <span>− {formatCurrency.CRC(display.swapFeeCrc)}</span>
+              </div>
+              <div className="flex items-baseline justify-between gap-3 tabular-nums">
+                <span className="text-gray-400">Comisión fija ({flatFeeLabel})</span>
+                <span>− {formatCurrency.CRC(display.flatFeeCrc)}</span>
+              </div>
             </div>
             <div className="border-t border-gray-200 pt-2" />
             <div className="flex items-baseline justify-between gap-3 tabular-nums">
               <span className="font-medium text-gray-900">
-                Recibirías aprox. (CRC)
+                Recibirías aprox.
               </span>
               <span className="text-lg font-semibold text-gray-900">
-                {formatCurrency.CRC(conv.netCrc)}
+                {formatCurrency.CRC(display.netCrc)}
               </span>
             </div>
           </div>
 
           <p className="text-[11px] leading-relaxed text-gray-400">
-            Cifras orientativas según tipo de cambio y comisión configurados en
-            la app. El monto final en colones lo define y liquida Ridivi al
-            procesar tu retiro.
+            Cifras orientativas. Ridivi liquida el monto final al procesar tu
+            retiro.
           </p>
         </div>
       </div>

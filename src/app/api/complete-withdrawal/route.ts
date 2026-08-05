@@ -1,15 +1,10 @@
-import type { Attachment } from 'resend';
 import { Prisma } from '@prisma/client';
 import { NextRequest, NextResponse } from 'next/server';
 
 import { auth } from '@/auth';
-import {
-  calculateConversionFromQuote,
-  LIMITS,
-} from '@/constants/exchange';
+import { estimateDisplayConversion, LIMITS } from '@/constants/exchange';
 import { getExchangeQuote } from '@/lib/exchange/get-quote';
 import type { ExchangeQuote } from '@/lib/exchange/types';
-import { complianceAttachmentsFromDataUrls } from '@/lib/email/compliance-attachments';
 import { sendWithdrawalComplianceEmail } from '@/lib/email/send-withdrawal-compliance';
 import { prisma } from '@/lib/prisma';
 
@@ -36,8 +31,6 @@ type DraftWithdrawal = {
   lastName: string;
   idNumber: string;
   contactEmail: string | null;
-  idFrontSubmitted: boolean;
-  idBackSubmitted: boolean;
 };
 
 function parseDraftWithdrawal(
@@ -80,8 +73,6 @@ function parseDraftWithdrawal(
       lastName,
       idNumber: idNumber.trim(),
       contactEmail,
-      idFrontSubmitted: Boolean(body.idFrontSubmitted),
-      idBackSubmitted: Boolean(body.idBackSubmitted),
     },
   };
 }
@@ -93,9 +84,7 @@ function buildWithdrawalCreateData(
   transactionId: string,
   quote: ExchangeQuote
 ) {
-  const conversion = calculateConversionFromQuote(quote, draft.amount);
-  const idSubmittedAt =
-    draft.idFrontSubmitted && draft.idBackSubmitted ? new Date() : null;
+  const conversion = estimateDisplayConversion(quote, draft.amount);
 
   return {
     referenceId,
@@ -112,10 +101,6 @@ function buildWithdrawalCreateData(
       const d = new Date(quote.fetchedAt);
       return Number.isNaN(d.getTime()) ? null : d;
     })(),
-    commissionCrc: new Prisma.Decimal(conversion.fee),
-    idFrontSubmitted: draft.idFrontSubmitted,
-    idBackSubmitted: draft.idBackSubmitted,
-    idSubmittedAt,
     contactEmail: draft.contactEmail,
     transactionId,
     txHash: null,
@@ -140,10 +125,6 @@ export async function POST(req: NextRequest) {
       typeof body.referenceId === 'string' ? body.referenceId.trim() : '';
     const transactionId =
       typeof body.transactionId === 'string' ? body.transactionId.trim() : '';
-    const idFrontDataUrl =
-      typeof body.idFrontDataUrl === 'string' ? body.idFrontDataUrl : '';
-    const idBackDataUrl =
-      typeof body.idBackDataUrl === 'string' ? body.idBackDataUrl : '';
 
     if (!referenceId || !transactionId) {
       return NextResponse.json(
@@ -164,31 +145,6 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    let complianceAttachments: Attachment[] | undefined;
-
-    if (sendEmail) {
-      if (!idFrontDataUrl || !idBackDataUrl) {
-        return NextResponse.json(
-          {
-            error:
-              'idFrontDataUrl and idBackDataUrl are required when compliance email is configured',
-          },
-          { status: 400 }
-        );
-      }
-      const parsed = complianceAttachmentsFromDataUrls(
-        idFrontDataUrl,
-        idBackDataUrl
-      );
-      if (!parsed) {
-        return NextResponse.json(
-          { error: 'Invalid or oversized ID image data URLs' },
-          { status: 400 }
-        );
-      }
-      complianceAttachments = parsed;
-    }
-
     let withdrawal = await prisma.withdrawal.findUnique({
       where: { referenceId },
     });
@@ -202,7 +158,7 @@ export async function POST(req: NextRequest) {
           {
             error: 'draft_withdrawal_required',
             message:
-              'Include phoneNumber, amountWLD, firstName, lastName, idNumber, idFrontSubmitted, idBackSubmitted, contactEmail (optional).',
+              'Include phoneNumber, amountWLD, firstName, lastName, idNumber, contactEmail (optional).',
           },
           { status: 400 }
         );
@@ -288,11 +244,7 @@ export async function POST(req: NextRequest) {
       where: { id: withdrawal.id },
     });
 
-    const emailResult = await sendWithdrawalComplianceEmail(withdrawal, {
-      ...(complianceAttachments?.length
-        ? { attachments: complianceAttachments }
-        : {}),
-    });
+    const emailResult = await sendWithdrawalComplianceEmail(withdrawal);
 
     if (emailResult.sent) {
       await prisma.withdrawal.update({

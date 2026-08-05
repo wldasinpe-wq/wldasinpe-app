@@ -59,7 +59,7 @@ model Withdrawal {
   contactEmail  String? @map("contact_email")
 
   amountWld     Decimal @map("amount_wld") @db.Decimal(20, 8)
-  /// Estimated net CRC to user (after commission), same basis as UI/email.
+  /// Estimated net CRC to user (UI formula at completion; Ridivi settles the final amount).
   amountCrc     Decimal @map("amount_crc") @db.Decimal(20, 4)
   /// CRC per 1 WLD at completion (World Get Prices live quote or env fallback).
   exchangeRate  Decimal @map("exchange_rate") @db.Decimal(20, 8)
@@ -67,16 +67,11 @@ model Withdrawal {
   exchangeRateSource    String?   @map("exchange_rate_source")
   /// When the FX snapshot was taken (`ExchangeQuote.fetchedAt`).
   exchangeRateFetchedAt DateTime? @map("exchange_rate_fetched_at")
-  commissionCrc Decimal @map("commission_crc") @db.Decimal(20, 4)
 
   transactionId String? @map("transaction_id")
   txHash        String? @map("tx_hash")
   status        WithdrawalStatus @default(PENDING_PAYMENT)
   lastError     String? @map("last_error")
-
-  idFrontSubmitted Boolean   @default(false) @map("id_front_submitted")
-  idBackSubmitted  Boolean   @default(false) @map("id_back_submitted")
-  idSubmittedAt    DateTime? @map("id_submitted_at")
 
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
