@@ -12,8 +12,6 @@ import {
 import {
   SINPE_SESSION_AMOUNT_WLD,
   SINPE_SESSION_CONTACT_EMAIL,
-  SINPE_SESSION_ID_BACK,
-  SINPE_SESSION_ID_FRONT,
   SINPE_SESSION_PAY_REFERENCE,
   SINPE_SESSION_PHONE,
   SINPE_SESSION_PROFILE,
@@ -47,8 +45,6 @@ export const InitiateWithdrawalStep = () => {
 
     const phone = sessionStorage.getItem(SINPE_SESSION_PHONE);
     const profileRaw = sessionStorage.getItem(SINPE_SESSION_PROFILE);
-    const idFront = sessionStorage.getItem(SINPE_SESSION_ID_FRONT);
-    const idBack = sessionStorage.getItem(SINPE_SESSION_ID_BACK);
     const amountRaw = sessionStorage.getItem(SINPE_SESSION_AMOUNT_WLD);
     const storedEmail = sessionStorage.getItem(SINPE_SESSION_CONTACT_EMAIL);
 
@@ -68,10 +64,6 @@ export const InitiateWithdrawalStep = () => {
     const amount = parseFloat(amountRaw);
     if (Number.isNaN(amount) || amount < LIMITS.MIN_WLD) {
       router.replace('/withdraw/amount');
-      return;
-    }
-    if (!idFront || !idBack) {
-      router.replace('/withdraw/id');
       return;
     }
 
@@ -102,8 +94,6 @@ export const InitiateWithdrawalStep = () => {
     setButtonState('pending');
 
     const profileRaw = sessionStorage.getItem(SINPE_SESSION_PROFILE);
-    const idFront = sessionStorage.getItem(SINPE_SESSION_ID_FRONT);
-    const idBack = sessionStorage.getItem(SINPE_SESSION_ID_BACK);
     let initiateBody: Record<string, string | number | boolean>;
 
     try {
@@ -125,8 +115,6 @@ export const InitiateWithdrawalStep = () => {
         firstName,
         lastName,
         idNumber: profile.identificacion,
-        idFrontSubmitted: Boolean(idFront),
-        idBackSubmitted: Boolean(idBack),
         contactEmail: emailStored,
       };
     } catch {
@@ -237,7 +225,7 @@ export const InitiateWithdrawalStep = () => {
 
   return (
     <div className="mx-auto grid w-full max-w-md gap-8">
-      <StepProgress currentStep={6} totalSteps={7} />
+      <StepProgress currentStep={5} totalSteps={6} />
 
       <StepHeader
         title="Resumen del retiro"

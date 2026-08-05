@@ -104,7 +104,6 @@ async function main() {
               commissionCrc: row.commissionCrc.toString(),
               createdAt: row.createdAt.toISOString(),
               updatedAt: row.updatedAt.toISOString(),
-              idSubmittedAt: row.idSubmittedAt?.toISOString() ?? null,
             },
             null,
             2

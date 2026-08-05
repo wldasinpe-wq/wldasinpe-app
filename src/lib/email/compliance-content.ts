@@ -191,7 +191,7 @@ function complianceEmailIntroLines(): string[] {
   return [
     'Hola,',
     '',
-    'Adjuntamos los datos del retiro (incluido el id de pago World / MiniKit) y las imágenes del documento de identidad (frente y reverso) tal como fueron cargadas en la aplicación.',
+    'Adjuntamos los datos del retiro, incluido el id de pago World / MiniKit.',
     '',
     'A continuación el detalle estructurado:',
     '',

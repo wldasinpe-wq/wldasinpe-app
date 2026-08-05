@@ -74,10 +74,6 @@ model Withdrawal {
   status        WithdrawalStatus @default(PENDING_PAYMENT)
   lastError     String? @map("last_error")
 
-  idFrontSubmitted Boolean   @default(false) @map("id_front_submitted")
-  idBackSubmitted  Boolean   @default(false) @map("id_back_submitted")
-  idSubmittedAt    DateTime? @map("id_submitted_at")
-
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
 
