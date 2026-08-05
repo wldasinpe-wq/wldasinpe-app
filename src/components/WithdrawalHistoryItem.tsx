@@ -15,7 +15,6 @@ export type ProfileWithdrawalRow = {
   amountWld: string;
   amountCrc: string;
   exchangeRate: string;
-  commissionCrc: string;
   createdAt: string;
   transactionId: string | null;
   txHash: string | null;
@@ -143,7 +142,6 @@ export function WithdrawalHistoryItem({
   const amountWld = Number(w.amountWld);
   const amountCrc = Number(w.amountCrc);
   const rate = Number(w.exchangeRate);
-  const fee = Number(w.commissionCrc);
   const tx = w.txHash?.trim() ?? '';
   const txExplorer = tx ? `${WORLDCAN_TX}${tx}` : undefined;
 
@@ -228,14 +226,6 @@ export function WithdrawalHistoryItem({
                 {Number.isFinite(rate)
                   ? `${formatCurrency.CRC(rate)} por 1 WLD`
                   : '—'}
-              </p>
-            </div>
-            <div>
-              <p className="text-xs font-medium text-gray-500">
-                Comisión fija (estimada)
-              </p>
-              <p className="text-gray-900">
-                {Number.isFinite(fee) ? formatCurrency.CRC(fee) : '—'}
               </p>
             </div>
             <div className="sm:col-span-2">

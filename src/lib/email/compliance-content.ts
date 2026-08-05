@@ -46,7 +46,6 @@ export type WithdrawalComplianceEmailInput = {
   exchangeRateSource: string | null;
   /** ISO timestamp from DB (`exchangeRateFetchedAt`), if present. */
   exchangeRateFetchedAt: string | null;
-  commissionCrc: string;
   /** World MiniKit payment id (`pay` success payload). */
   transactionId: string | null;
 };
@@ -72,7 +71,6 @@ export function withdrawalToComplianceInput(
     exchangeRateCrcPerWld: row.exchangeRate.toString(),
     exchangeRateSource: rateMeta.source,
     exchangeRateFetchedAt: rateMeta.fetchedAtIso,
-    commissionCrc: row.commissionCrc.toString(),
     transactionId: row.transactionId,
   };
 }
@@ -171,7 +169,6 @@ function buildComplianceFields(
       key: 'tipo_cambio_snapshot_utc',
       value: input.exchangeRateFetchedAt ?? '(no registrado)',
     },
-    { key: 'comision_crc', value: input.commissionCrc },
     { key: 'referencia_retiro', value: input.referenceId },
   ];
 

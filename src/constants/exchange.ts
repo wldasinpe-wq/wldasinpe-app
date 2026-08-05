@@ -1,15 +1,15 @@
 /**
- * FX + fee resolution.
+ * FX + Ridivi fee estimates for UI.
  *
  * - Live WLD→CRC (and WLD→USD) via World Get Prices — see `getExchangeQuote()` in `@/lib/exchange/get-quote`.
  * - Env fallback: `NEXT_PUBLIC_WLD_TO_CRC` or `NEXT_PUBLIC_WLD_TO_USD` + `NEXT_PUBLIC_USD_TO_CRC`.
- * - Fee: `NEXT_PUBLIC_COMISION_CRC` or `NEXT_PUBLIC_FLAT_FEE_USD` × USD→CRC (CRC from quote legs).
+ * - Fee estimate: `NEXT_PUBLIC_RIDIVI_SWAP_FEE_BPS` + `NEXT_PUBLIC_RIDIVI_FLAT_FEE_USD` — see `estimateDisplayConversion()`.
  *
- * Client-visible fee env vars must stay `NEXT_PUBLIC_*` with static `process.env` access for bundling.
+ * Client-visible env vars must stay `NEXT_PUBLIC_*` with static `process.env` access for bundling.
  */
 
 import type {
-  ConversionBreakdown,
+  DisplayConversionBreakdown,
   ExchangeQuote,
 } from '@/lib/exchange/types';
 
@@ -31,8 +31,23 @@ function parseNonNegativeFloat(raw: string | undefined): number | null {
 const envWldToCrc = parsePositiveFloat(process.env.NEXT_PUBLIC_WLD_TO_CRC);
 const envWldToUsd = parsePositiveFloat(process.env.NEXT_PUBLIC_WLD_TO_USD);
 const envUsdToCrc = parsePositiveFloat(process.env.NEXT_PUBLIC_USD_TO_CRC);
-const envComisionCrc = parseNonNegativeFloat(process.env.NEXT_PUBLIC_COMISION_CRC);
-const envFlatFeeUsd = parsePositiveFloat(process.env.NEXT_PUBLIC_FLAT_FEE_USD);
+const envRidiviSwapFeeBps = parseNonNegativeFloat(
+  process.env.NEXT_PUBLIC_RIDIVI_SWAP_FEE_BPS,
+);
+const envRidiviDisplayFlatFeeUsd = parsePositiveFloat(
+  process.env.NEXT_PUBLIC_RIDIVI_FLAT_FEE_USD,
+);
+
+/** Ridivi fee policy for UI estimates only (defaults: 2% swap + USD 3). */
+export const RIDIVI_DISPLAY_FEES = {
+  swapFeeBps: envRidiviSwapFeeBps ?? 200,
+  flatFeeUsd: envRidiviDisplayFlatFeeUsd ?? 3,
+} as const;
+
+export function formatSwapFeePercent(bps: number): string {
+  const pct = bps / 100;
+  return Number.isInteger(pct) ? `${pct}%` : `${pct.toFixed(2)}%`;
+}
 
 function resolveEnvWldToCrc(): number {
   if (envWldToCrc != null) return envWldToCrc;
@@ -58,15 +73,6 @@ function resolveEnvUsdToCrc(): number {
   return 0;
 }
 
-/** Fixed fee in CRC from env, using USD→CRC when fee is configured in USD. */
-export function resolveFlatFeeCrcFromEnv(usdToCrc: number): number {
-  if (envComisionCrc != null) return envComisionCrc;
-  if (envFlatFeeUsd != null && usdToCrc > 0) {
-    return envFlatFeeUsd * usdToCrc;
-  }
-  return 0;
-}
-
 function isoNow(): string {
   return new Date().toISOString();
 }
@@ -76,18 +82,16 @@ export function getEnvExchangeQuote(): ExchangeQuote {
   const wldToCrc = resolveEnvWldToCrc();
   const wldToUsd = resolveEnvWldToUsd();
   const usdToCrc = resolveEnvUsdToCrc();
-  const flatFeeCrc = resolveFlatFeeCrcFromEnv(usdToCrc);
   return {
     wldToCrc,
     wldToUsd,
     usdToCrc,
-    flatFeeCrc,
     source: 'env',
     fetchedAt: isoNow(),
   };
 }
 
-/** Merge World WLD legs with fee rules from env. */
+/** Merge World WLD legs into a quote snapshot. */
 export function quoteFromWorldLegs(
   wldToUsd: number,
   wldToCrc: number
@@ -97,7 +101,6 @@ export function quoteFromWorldLegs(
     wldToUsd,
     wldToCrc,
     usdToCrc,
-    flatFeeCrc: resolveFlatFeeCrcFromEnv(usdToCrc),
     source: 'world',
     fetchedAt: isoNow(),
   };
@@ -111,25 +114,35 @@ export const LIMITS = {
 export const formatCurrency = {
   WLD: (amount: number) => `${amount.toFixed(2)} WLD`,
   USD: (amount: number) => `$${amount.toFixed(2)}`,
+  USDLabel: (amount: number) => `$${amount.toFixed(2)} USD`,
   CRC: (amount: number) => `\u20a1${amount.toFixed(0)}`,
 };
 
-export function calculateConversionFromQuote(
+/**
+ * Approximate Ridivi fees for UI and stored net-CRC estimates — 2% on WLD→USD + flat USD fee.
+ * Ridivi settles the final amount; this is not a payout calculation.
+ */
+export function estimateDisplayConversion(
   quote: ExchangeQuote,
-  wldAmount: number
-): ConversionBreakdown {
-  const wldToUsd = quote.wldToUsd;
-  const wldToCrc = quote.wldToCrc;
-  const usdAmount = wldAmount * wldToUsd;
-  const crcAmount = wldAmount * wldToCrc;
-  const fee = quote.flatFeeCrc;
-  const netCrc = crcAmount - fee;
+  wldAmount: number,
+): DisplayConversionBreakdown {
+  const grossUsd = wldAmount * quote.wldToUsd;
+  const grossCrc = wldAmount * quote.wldToCrc;
+  const usdToCrc = quote.usdToCrc > 0 ? quote.usdToCrc : 0;
+  const swapFeeUsd =
+    grossUsd * (RIDIVI_DISPLAY_FEES.swapFeeBps / 10_000);
+  const swapFeeCrc = swapFeeUsd * usdToCrc;
+  const flatFeeCrc = RIDIVI_DISPLAY_FEES.flatFeeUsd * usdToCrc;
+  const fee = swapFeeCrc + flatFeeCrc;
+  const netCrc = Math.max(0, grossCrc - fee);
 
   return {
     wld: wldAmount,
-    usd: usdAmount,
-    crc: crcAmount,
+    usd: grossUsd,
+    crc: grossCrc,
+    swapFeeCrc,
+    flatFeeCrc,
     fee,
-    netCrc: Math.max(0, netCrc),
+    netCrc,
   };
 }
