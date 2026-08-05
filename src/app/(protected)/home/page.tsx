@@ -66,7 +66,7 @@ export default async function Home() {
         <div className="text-center text-xs text-gray-500 max-w-md space-y-1 border-t border-gray-200 pt-6">
           <p>
             Comisiones estimadas: {formatSwapFeePercent(RIDIVI_DISPLAY_FEES.swapFeeBps)}{' '}
-            del cambio + {formatCurrency.USD(RIDIVI_DISPLAY_FEES.flatFeeUsd)} por retiro
+            del cambio + {formatCurrency.USDLabel(RIDIVI_DISPLAY_FEES.flatFeeUsd)} por retiro
           </p>
           <p>Monto mínimo: 0.1 WLD</p>
         </div>

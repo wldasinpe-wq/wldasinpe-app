@@ -114,6 +114,7 @@ export const LIMITS = {
 export const formatCurrency = {
   WLD: (amount: number) => `${amount.toFixed(2)} WLD`,
   USD: (amount: number) => `$${amount.toFixed(2)}`,
+  USDLabel: (amount: number) => `$${amount.toFixed(2)} USD`,
   CRC: (amount: number) => `\u20a1${amount.toFixed(0)}`,
 };
 
