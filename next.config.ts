@@ -6,6 +6,10 @@ const nextConfig: NextConfig = {
   },
   allowedDevOrigins: ['https://dealing-theater-tested-proceed.trycloudflare.com'],
   reactStrictMode: false,
+  experimental: {
+    /** Large JSON bodies for complete-withdrawal (ID data URLs). */
+    serverActions: { bodySizeLimit: '12mb' },
+  },
 };
 
 export default nextConfig;
