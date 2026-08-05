@@ -9,7 +9,6 @@
  */
 
 import type {
-  ConversionBreakdown,
   DisplayConversionBreakdown,
   ExchangeQuote,
 } from '@/lib/exchange/types';
